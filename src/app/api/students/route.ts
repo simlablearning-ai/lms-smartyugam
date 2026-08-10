@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, json, error } from "@/lib/api-helpers";
 import { Role } from "@prisma/client";
 import { hash } from "bcryptjs";
+import { notifyUser } from "@/lib/notify";
+import { emailLayout, sendEmail } from "@/lib/email";
 
 export async function GET(req: Request) {
   const auth = await requireAuth([Role.SUPER_ADMIN, Role.COLLEGE_ADMIN]);
@@ -90,6 +92,16 @@ export async function POST(req: Request) {
       },
     });
 
+    try {
+      await notifyUser({
+        userId: student.id,
+        title: "Welcome to SmartYugam LMS",
+        body: `Your student account is ready. Sign in with ${student.email}.`,
+        type: "ACCOUNT",
+        link: "/login",
+        email: true,
+      });
+    } catch {}
     return json(student, 201);
   } catch (e: any) {
     return error(e.message || "Failed to create student", 500);

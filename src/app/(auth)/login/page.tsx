@@ -3,7 +3,7 @@
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Loader2, Lock, Mail } from "lucide-react";
+import { Loader2, Lock, Mail, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,31 +16,18 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
-      const res = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
-
+      const res = await signIn("credentials", { email, password, redirect: false });
       if (res?.error) {
         setError("Invalid email or password");
         setLoading(false);
         return;
       }
-
-      // Redirect based on role – we fetch session after login
       const sessionRes = await fetch("/api/auth/session");
       const session = await sessionRes.json();
-
-      if (session?.user?.role === "SUPER_ADMIN") {
-        router.push("/super-admin");
-      } else if (session?.user?.role === "COLLEGE_ADMIN") {
-        router.push("/college-admin");
-      } else {
-        router.push("/student");
-      }
+      if (session?.user?.role === "SUPER_ADMIN") router.push("/super-admin");
+      else if (session?.user?.role === "COLLEGE_ADMIN") router.push("/college-admin");
+      else router.push("/student");
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
@@ -48,126 +35,59 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left branding panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white p-12 flex-col justify-between">
-        <div>
-          <img
-            src="https://lms.smartyugam.com/logo.png"
-            alt="SmartYugam LMS"
-            className="h-12 w-auto object-contain brightness-0 invert"
-          />
+    <div className="min-h-screen grid lg:grid-cols-2 bg-[#f3f0e9]">
+      <div className="relative hidden lg:flex flex-col justify-between p-12 overflow-hidden bg-[#12151c] text-[#f5f1ea]">
+        <div className="absolute inset-0 opacity-40" style={{ background: "radial-gradient(ellipse 80% 60% at 20% 20%, rgba(196,92,38,0.35), transparent 55%), radial-gradient(ellipse 70% 50% at 90% 80%, rgba(26,107,92,0.25), transparent 50%)" }} />
+        <div className="relative inline-flex items-center gap-3">
+          <div className="h-11 w-11 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center">
+            <img src="https://lms.smartyugam.com/logo.png" alt="SmartYugam" className="h-7 w-auto object-contain" />
+          </div>
+          <div>
+            <p className="text-lg font-semibold tracking-tight">SmartYugam</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-[#9a948a]">Campus LMS</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-4xl font-bold leading-tight mb-4">
-            Smart Learning<br />Management System
+        <div className="relative max-w-md">
+          <p className="text-[#e0a070] text-xs font-semibold uppercase tracking-[0.2em] mb-4">Learn · Assess · Place</p>
+          <h1 className="font-display text-4xl xl:text-5xl font-medium leading-[1.15] text-[#faf8f4]">
+            The campus desk for learning that actually sticks.
           </h1>
-          <p className="text-indigo-100 text-lg max-w-md">
-            Multi-tenant platform for colleges. Manage courses, assessments,
-            proctored tests and certificates — all in one place.
+          <p className="mt-5 text-[#b8b2a6] text-base leading-relaxed">
+            Courses, proctored tests, results, and placement — one calm workspace for colleges, faculty, and students.
           </p>
         </div>
-        <p className="text-indigo-200 text-sm">
-          © {new Date().getFullYear()} SmartYugam. All rights reserved.
-        </p>
+        <p className="relative text-sm text-[#7a746a]">© {new Date().getFullYear()} SmartYugam</p>
       </div>
 
-      {/* Right form */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-12 bg-slate-50">
-        <div className="w-full max-w-md">
-          <div className="lg:hidden mb-8 flex justify-center">
-            <img
-              src="https://lms.smartyugam.com/logo.png"
-              alt="SmartYugam LMS"
-              className="h-14 w-auto object-contain"
-            />
+      <div className="flex items-center justify-center p-6 sm:p-10">
+        <div className="w-full max-w-[400px]">
+          <div className="lg:hidden mb-10 flex items-center gap-3">
+            <img src="https://lms.smartyugam.com/logo.png" alt="" className="h-9 w-auto" />
+            <span className="font-semibold text-[#1a1814]">SmartYugam</span>
           </div>
-
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-            <h2 className="text-2xl font-semibold text-slate-900 mb-1">
-              Welcome back
-            </h2>
-            <p className="text-slate-500 mb-8">
-              Sign in to your LMS account
-            </p>
-
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Email address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@college.edu"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                  />
-                </div>
-              </div>
-
-              {error && (
-                <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-medium py-2.5 rounded-lg transition-colors"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  "Sign in"
-                )}
-              </button>
-            </form>
-
-            <div className="mt-8 pt-6 border-t border-slate-100">
-              <p className="text-xs text-slate-500 text-center mb-3">
-                Demo accounts (password: <code className="bg-slate-100 px-1 rounded">password123</code>)
-              </p>
-              <div className="grid grid-cols-1 gap-1.5 text-xs text-slate-600">
-                <div className="flex justify-between">
-                  <span>Super Admin</span>
-                  <span className="font-mono">superadmin@smartyugam.com</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>College Admin</span>
-                  <span className="font-mono">admin@syit.edu</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Student</span>
-                  <span className="font-mono">student1@syit.edu</span>
-                </div>
+          <h2 className="font-display text-3xl font-medium text-[#1a1814] tracking-tight">Welcome back</h2>
+          <p className="mt-2 text-sm text-[#6b6560]">Sign in with your college credentials to continue.</p>
+          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-1.5">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9a948a]" />
+                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@college.edu" className="sy-input pl-10" />
               </div>
             </div>
-          </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-1.5">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9a948a]" />
+                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="sy-input pl-10" />
+              </div>
+            </div>
+            {error && <div className="text-sm text-[#a33] bg-[#fdecea] border border-[#f0c4c0] rounded-xl px-3 py-2.5">{error}</div>}
+            <div className="text-right"><a href="/forgot-password" className="text-xs text-[#c45c26] font-medium">Forgot password?</a></div>
+            <button type="submit" disabled={loading} className="sy-btn-primary w-full flex items-center justify-center gap-2 py-3 text-sm disabled:opacity-60">
+              {loading ? (<><Loader2 className="h-4 w-4 animate-spin" /> Signing in…</>) : (<>Sign in <ArrowRight className="h-4 w-4" /></>)}
+            </button>
+          </form>
         </div>
       </div>
     </div>

@@ -44,6 +44,21 @@ enum TestPurpose {
   FINAL
 }
 
+enum ApplicationStatus {
+  APPLIED
+  SHORTLISTED
+  INTERVIEW
+  SELECTED
+  REJECTED
+  BLOCKED
+}
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -68,6 +83,13 @@ model User {
   certificates       Certificate[]
   enrollments        Enrollment[]
   moduleProgress     ModuleProgress[]
+  placementProfile   PlacementProfile?
+  jobApplications    JobApplication[]
+  placementBlocks    PlacementBlock[]  @relation("BlockedStudent")
+  blocksCreated      PlacementBlock[]  @relation("BlockCreator")
+  notifications      Notification[]
+  pushSubscriptions  PushSubscription[]
+  passwordResets     PasswordResetToken[]
 
   @@index([collegeId])
   @@index([role])
@@ -92,6 +114,7 @@ model College {
   questionBanks QuestionBank[]
   tests       Test[]
   certificates Certificate[]
+  jobPostings  JobPosting[]
 }
 
 model Department {
@@ -356,4 +379,143 @@ model Certificate {
 
   @@index([studentId])
   @@index([courseId])
+}
+
+model PlacementProfile {
+  id            String   @id @default(cuid())
+  studentId     String   @unique
+  headline      String?
+  summary       String?
+  phone         String?
+  location      String?
+  linkedinUrl   String?
+  githubUrl     String?
+  portfolioUrl  String?
+  resumeUrl     String?
+  skills        String?  // comma or JSON list
+  education     String?  // JSON array
+  experience    String?  // JSON array
+  cgpa          Float?
+  backlogs      Int      @default(0)
+  isComplete    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  student       User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model JobPosting {
+  id              String    @id @default(cuid())
+  title           String
+  companyName     String
+  location        String?
+  jobType         String?   // Full-time, Internship, etc.
+  description     String?
+  requirements    String?
+  skillsRequired  String?   // comma-separated
+  packageLpa      Float?
+  minCgpa         Float?
+  maxBacklogs     Int?
+  eligibleYears   String?   // e.g. "3,4"
+  eligibleDepts   String?   // department codes or names
+  collegeId       String?   // null = all colleges
+  status          JobStatus @default(OPEN)
+  applicationDeadline DateTime?
+  interviewNotes  String?
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  college         College?  @relation(fields: [collegeId], references: [id])
+  applications    JobApplication[]
+  blocks          PlacementBlock[]
+
+  @@index([status])
+  @@index([collegeId])
+}
+
+model JobApplication {
+  id            String            @id @default(cuid())
+  jobId         String
+  studentId     String
+  status        ApplicationStatus @default(APPLIED)
+  score         Float?            // ranking score
+  adminNotes    String?
+  interviewRound String?
+  interviewAt   DateTime?
+  interviewInfo String?
+  // Per-application profile override (does not change PlacementProfile)
+  appSkills     String?
+  appResume     String?           // URL or data URL from upload
+  appHeadline   String?
+  coverLetter   String?
+  resumeFileName String?
+  appliedAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  job           JobPosting        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  student       User              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, studentId])
+  @@index([jobId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model PlacementBlock {
+  id          String   @id @default(cuid())
+  jobId       String
+  studentId   String
+  reason      String?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  job         JobPosting @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  student     User       @relation("BlockedStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  createdBy   User       @relation("BlockCreator", fields: [createdById], references: [id])
+
+  @@unique([jobId, studentId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  type      String   // TEST, JOB, APPLICATION, ACCOUNT, SYSTEM
+  link      String?
+  read      Boolean  @default(false)
+  meta      String?  // JSON
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
