@@ -17,9 +17,9 @@ export async function GET(req: Request) {
   const testId = searchParams.get("testId");
   const studentId = searchParams.get("studentId");
 
-  let scopedCollegeId = collegeId;
+  let scopedCollegeId: string | undefined = collegeId ?? undefined;
   if (auth.session!.user.role === Role.COLLEGE_ADMIN) {
-    scopedCollegeId = auth.session!.user.collegeId || undefined;
+    scopedCollegeId = auth.session!.user.collegeId ?? undefined;
   }
 
   const studentWhere: any = { role: Role.STUDENT, isActive: true };

@@ -14,9 +14,9 @@ export async function GET(req: Request) {
   const view = searchParams.get("view") || "summary"; // summary | department | year | student
 
   // Scope for College Admin
-  let scopedCollegeId = collegeId;
+  let scopedCollegeId: string | undefined = collegeId ?? undefined;
   if (auth.session!.user.role === Role.COLLEGE_ADMIN) {
-    scopedCollegeId = auth.session!.user.collegeId || undefined;
+    scopedCollegeId = auth.session!.user.collegeId ?? undefined;
   }
 
   try {
