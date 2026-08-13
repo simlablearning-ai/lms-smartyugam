@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Modal } from "@/components/ui/Modal";
-import { Users, Plus, Pencil, Trash2, Search, Upload, Download, BarChart3, FileSpreadsheet } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Search, Upload, Download, BarChart3, FileSpreadsheet, KeyRound } from "lucide-react";
 import { parseSpreadsheetFile, parseCsvText } from "@/lib/parse-spreadsheet";
 
 type College = { id: string; name: string; code: string };
@@ -86,7 +86,7 @@ export default function StudentsPage() {
     setForm({
       name: "",
       email: "",
-      password: "password123",
+      password: "123456",
       rollNumber: "",
       collegeId: colleges[0]?.id || "",
       departmentId: "",
@@ -139,6 +139,22 @@ export default function StudentsPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function resetPassword(id: string, name: string) {
+    const pwd = prompt(`New password for ${name} (default 123456):`, "123456");
+    if (pwd === null) return;
+    const res = await fetch(`/api/students/${id}/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pwd || "123456" }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(d.error || "Reset failed");
+      return;
+    }
+    alert(`Password reset. Temporary password: ${d.temporaryPassword || pwd}`);
   }
 
   async function handleDelete(id: string, name: string) {
@@ -194,7 +210,7 @@ export default function StudentsPage() {
   }
 
   function downloadTemplate() {
-    const csv = "name,email,password,collegeCode,departmentCode,year,rollNumber\nJohn Doe,john@college.edu,password123,SYIT,CSE,1,CSE21B001\n";
+    const csv = "name,rollNumber,password,collegeCode,departmentCode,year,email\nJohn Doe,john@college.edu,password123,SYIT,CSE,1,CSE21B001\n";
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -383,10 +399,13 @@ export default function StudentsPage() {
                           <button onClick={() => viewProgress(s.id)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-indigo-600" title="Learning progress">
                             <BarChart3 className="h-4 w-4" />
                           </button>
-                          <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-indigo-600">
+                          <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-indigo-600" title="Edit">
                             <Pencil className="h-4 w-4" />
                           </button>
-                          <button onClick={() => handleDelete(s.id, s.name)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-500 hover:text-red-600">
+                          <button onClick={() => resetPassword(s.id, s.name)} className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-500 hover:text-amber-700" title="Reset password">
+                            <KeyRound className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => handleDelete(s.id, s.name)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-500 hover:text-red-600" title="Deactivate">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
@@ -409,12 +428,12 @@ export default function StudentsPage() {
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email *</label>
-              <input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+              <label className="block text-sm font-medium text-slate-700 mb-1">Email (optional)</label>
+              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Roll Number</label>
-              <input value={form.rollNumber} onChange={(e) => setForm({ ...form, rollNumber: e.target.value })}
+              <label className="block text-sm font-medium text-slate-700 mb-1">Roll Number * (login username)</label>
+              <input required value={form.rollNumber} onChange={(e) => setForm({ ...form, rollNumber: e.target.value })}
                 placeholder="e.g. CSE21B001"
                 className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
@@ -522,7 +541,7 @@ export default function StudentsPage() {
               value={bulkText}
               onChange={(e) => { setBulkText(e.target.value); setBulkFile(null); setBulkPreview([]); }}
               rows={5}
-              placeholder={"name,email,password,collegeCode,departmentCode,year,rollNumber\nJohn Doe,john@syit.edu,password123,SYIT,CSE,1,CSE21B001"}
+              placeholder={"name,rollNumber,password,collegeCode,departmentCode,year,email\nJohn Doe,john@syit.edu,password123,SYIT,CSE,1,CSE21B001"}
               className="mt-2 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </details>

@@ -29,12 +29,28 @@ export async function PUT(
 
     const data: any = {};
     if (name !== undefined) data.name = name;
-    if (email !== undefined) data.email = email.toLowerCase();
+    if (email !== undefined) {
+      data.email =
+        email != null && String(email).trim() !== ""
+          ? String(email).trim().toLowerCase()
+          : null;
+    }
     if (departmentId !== undefined) data.departmentId = departmentId || null;
     if (year !== undefined) data.year = year ? parseInt(year) : null;
-    if (rollNumber !== undefined) data.rollNumber = rollNumber ? String(rollNumber).trim() : null;
+    if (rollNumber !== undefined) {
+      const roll = rollNumber ? String(rollNumber).trim() : "";
+      if (!roll) return error("Roll Number is required");
+      const clash = await prisma.user.findFirst({
+        where: {
+          rollNumber: { equals: roll, mode: "insensitive" },
+          NOT: { id },
+        },
+      });
+      if (clash) return error("Roll Number already used by another student");
+      data.rollNumber = roll;
+    }
     if (isActive !== undefined) data.isActive = isActive;
-    if (password) data.password = await hash(password, 12);
+    if (password) data.password = await hash(String(password), 12);
 
     const student = await prisma.user.update({
       where: { id },
@@ -78,7 +94,6 @@ export async function DELETE(
       return error("Forbidden", 403);
     }
 
-    // Soft delete
     await prisma.user.update({
       where: { id },
       data: { isActive: false },

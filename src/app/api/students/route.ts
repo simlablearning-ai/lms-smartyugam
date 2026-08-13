@@ -3,7 +3,6 @@ import { requireAuth, json, error } from "@/lib/api-helpers";
 import { Role } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { notifyUser } from "@/lib/notify";
-import { emailLayout, sendEmail } from "@/lib/email";
 
 export async function GET(req: Request) {
   const auth = await requireAuth([Role.SUPER_ADMIN, Role.COLLEGE_ADMIN]);
@@ -52,42 +51,48 @@ export async function POST(req: Request) {
     const body = await req.json();
     let { name, email, password, collegeId, departmentId, year, rollNumber } = body;
 
-    if (!name || !email) {
-      return error("Name and Email are required");
-    }
+    if (!name) return error("Name is required");
+    const roll = rollNumber != null ? String(rollNumber).trim() : "";
+    if (!roll) return error("Roll Number is required (used as login username)");
 
     if (auth.session!.user.role === Role.COLLEGE_ADMIN) {
       collegeId = auth.session!.user.collegeId;
     }
+    if (!collegeId) return error("College is required");
 
-    if (!collegeId) {
-      return error("College is required");
-    }
+    const emailVal =
+      email != null && String(email).trim() !== ""
+        ? String(email).trim().toLowerCase()
+        : null;
 
-    const existing = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+    const existingRoll = await prisma.user.findFirst({
+      where: { rollNumber: { equals: roll, mode: "insensitive" } },
     });
-    if (existing) {
-      return error("Email already registered");
+    if (existingRoll) return error("Roll Number already registered");
+
+    if (emailVal) {
+      const existingEmail = await prisma.user.findUnique({ where: { email: emailVal } });
+      if (existingEmail) return error("Email already registered");
     }
 
-    const hashed = await hash(password || "password123", 12);
+    const hashed = await hash(password || "123456", 12);
 
     const student = await prisma.user.create({
       data: {
         name,
-        email: email.toLowerCase(),
+        email: emailVal,
         password: hashed,
         role: Role.STUDENT,
         collegeId,
         departmentId: departmentId || null,
         year: year ? parseInt(year) : null,
-        rollNumber: rollNumber ? String(rollNumber).trim() : null,
+        rollNumber: roll,
       },
       select: {
         id: true,
         name: true,
         email: true,
+        rollNumber: true,
         year: true,
         college: { select: { id: true, name: true, code: true } },
         department: { select: { id: true, name: true, code: true } },
@@ -98,12 +103,13 @@ export async function POST(req: Request) {
       await notifyUser({
         userId: student.id,
         title: "Welcome to SmartYugam LMS",
-        body: `Your student account is ready. Sign in with ${student.email}.`,
+        body: `Your student account is ready. Sign in with Roll Number: ${student.rollNumber} (default password if not set: 123456).`,
         type: "ACCOUNT",
         link: "/login",
-        email: true,
+        email: !!student.email,
       });
     } catch {}
+
     return json(student, 201);
   } catch (e: any) {
     return error(e.message || "Failed to create student", 500);

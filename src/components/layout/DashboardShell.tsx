@@ -65,6 +65,7 @@ const studentNav: NavItem[] = [
   { label: "Certificates", href: "/student/certificates", icon: Award },
   { label: "Learning Path", href: "/student/learning-path", icon: BarChart3 },
   { label: "Placement", href: "/student/placement", icon: Briefcase },
+  { label: "Account", href: "/student/account", icon: Settings },
   { label: "Calendar", href: "/student/calendar", icon: CalendarDays },
 ];
 

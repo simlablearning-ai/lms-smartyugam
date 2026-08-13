@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Modal } from "@/components/ui/Modal";
-import { Users, Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Search, KeyRound } from "lucide-react";
 
 type Department = { id: string; name: string; code: string };
 type Student = {
@@ -26,7 +26,7 @@ export default function CollegeStudentsPage() {
   const [form, setForm] = useState({
     name: "",
     email: "",
-    password: "password123",
+    password: "123456",
     rollNumber: "",
     departmentId: "",
     year: "1",
@@ -65,7 +65,7 @@ export default function CollegeStudentsPage() {
     setForm({
       name: "",
       email: "",
-      password: "password123",
+      password: "123456",
       rollNumber: "",
       departmentId: "",
       year: "1",
@@ -86,6 +86,19 @@ export default function CollegeStudentsPage() {
     });
     setError("");
     setModalOpen(true);
+  }
+
+  async function resetPassword(id: string, name: string) {
+    const pwd = prompt(`New password for ${name} (default 123456):`, "123456");
+    if (pwd === null) return;
+    const res = await fetch(`/api/students/${id}/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pwd || "123456" }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) alert(d.error || "Reset failed");
+    else alert(`Password reset: ${d.temporaryPassword || pwd}`);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -219,12 +232,12 @@ export default function CollegeStudentsPage() {
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email *</label>
-            <input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+            <label className="block text-sm font-medium text-slate-700 mb-1">Email (optional)</label>
+            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Roll Number</label>
-              <input value={form.rollNumber} onChange={(e) => setForm({ ...form, rollNumber: e.target.value })}
+              <input required value={form.rollNumber} onChange={(e) => setForm({ ...form, rollNumber: e.target.value })}
                 placeholder="e.g. CSE21B001"
                 className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>

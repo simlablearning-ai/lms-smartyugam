@@ -20,6 +20,7 @@ async function main() {
   await prisma.college.deleteMany();
 
   const password = await hash("password123", 12);
+  const studentPassword = await hash("123456", 12);
 
   // Super Admin
   const superAdmin = await prisma.user.create({
@@ -103,7 +104,7 @@ async function main() {
   const student1 = await prisma.user.create({
     data: {
       email: "student1@syit.edu",
-      password,
+      password: studentPassword,
       name: "Aarav Patel",
       role: Role.STUDENT,
       rollNumber: "SYIT/CSE/21/001",
@@ -116,7 +117,7 @@ async function main() {
   const student2 = await prisma.user.create({
     data: {
       email: "student2@syit.edu",
-      password,
+      password: studentPassword,
       name: "Ananya Reddy",
       role: Role.STUDENT,
       rollNumber: "SYIT/CSE/21/002",
@@ -129,7 +130,7 @@ async function main() {
   const student3 = await prisma.user.create({
     data: {
       email: "student3@gec.edu",
-      password,
+      password: studentPassword,
       rollNumber: "GEC/ME/20/015",
       name: "Rohan Mehta",
       role: Role.STUDENT,
@@ -266,7 +267,7 @@ async function main() {
   });
 
   console.log("✅ Seed completed successfully!");
-  console.log("\n📋 Demo Credentials (password for all: password123)");
+  console.log("\n📋 Demo Credentials (Admins: password123 | Students: roll number + password 123456)");
   console.log("─────────────────────────────────────────────────");
   console.log("Super Admin     : superadmin@smartyugam.com");
   console.log("College Admin 1 : admin@syit.edu");

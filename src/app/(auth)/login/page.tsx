@@ -19,7 +19,7 @@ export default function LoginPage() {
     try {
       const res = await signIn("credentials", { email, password, redirect: false });
       if (res?.error) {
-        setError("Invalid email or password");
+        setError("Invalid login ID or password");
         setLoading(false);
         return;
       }
@@ -66,13 +66,13 @@ export default function LoginPage() {
             <span className="font-semibold text-[#1a1814]">SmartYugam</span>
           </div>
           <h2 className="font-display text-3xl font-medium text-[#1a1814] tracking-tight">Welcome back</h2>
-          <p className="mt-2 text-sm text-[#6b6560]">Sign in with your college credentials to continue.</p>
+          <p className="mt-2 text-sm text-[#6b6560]">Students: use Roll Number. Admins: use email.</p>
           <form onSubmit={handleSubmit} className="mt-8 space-y-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-1.5">Email</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-1.5">Email or Roll Number</label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9a948a]" />
-                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@college.edu" className="sy-input pl-10" />
+                <input type="text" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email or roll number" className="sy-input pl-10" />
               </div>
             </div>
             <div>

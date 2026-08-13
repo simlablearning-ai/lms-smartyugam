@@ -4,9 +4,9 @@ import { Role } from "@prisma/client";
 import { hash } from "bcryptjs";
 
 /**
- * Bulk create students from CSV/JSON array.
- * Expected fields per row: name, email, password (optional), collegeCode or collegeId,
- * departmentCode (optional), year (optional), rollNumber / roll (optional)
+ * Bulk create students.
+ * Required: name, rollNumber (login username)
+ * Optional: email, password (default 123456), collegeCode, departmentCode, year
  */
 export async function POST(req: Request) {
   const auth = await requireAuth([Role.SUPER_ADMIN, Role.COLLEGE_ADMIN]);
@@ -14,21 +14,26 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const rows: any[] = Array.isArray(body.students) ? body.students : Array.isArray(body) ? body : [];
+    const rows: any[] = Array.isArray(body.students)
+      ? body.students
+      : Array.isArray(body)
+      ? body
+      : [];
 
     if (!rows.length) {
-      return error("No students provided. Send { students: [...] } or a JSON array.");
+      return error("No students provided. Send { students: [...] }");
     }
 
     const results = { created: 0, skipped: 0, errors: [] as string[] };
-    const defaultPassword = await hash("password123", 12);
+    const defaultPassword = await hash("123456", 12);
 
-    // Pre-load colleges & departments for code lookup
     const colleges = await prisma.college.findMany({ select: { id: true, code: true } });
     const departments = await prisma.department.findMany({
       select: { id: true, code: true, collegeId: true },
     });
-    const collegeByCode = Object.fromEntries(colleges.map((c) => [c.code.toUpperCase(), c.id]));
+    const collegeByCode = Object.fromEntries(
+      colleges.map((c) => [c.code.toUpperCase(), c.id])
+    );
     const deptByKey = Object.fromEntries(
       departments.map((d) => [`${d.collegeId}:${d.code.toUpperCase()}`, d.id])
     );
@@ -36,15 +41,32 @@ export async function POST(req: Request) {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const name = (row.name || row.Name || "").toString().trim();
-      const email = (row.email || row.Email || "").toString().trim().toLowerCase();
-      if (!name || !email) {
-        results.errors.push(`Row ${i + 1}: name and email required`);
+      const rollRaw =
+        row.rollNumber ||
+        row.RollNumber ||
+        row.roll ||
+        row.Roll ||
+        row["Roll Number"] ||
+        row["roll number"];
+      const roll = rollRaw != null ? String(rollRaw).trim() : "";
+      const emailRaw = (row.email || row.Email || "").toString().trim().toLowerCase();
+      const emailVal = emailRaw || null;
+
+      if (!name || !roll) {
+        results.errors.push(`Row ${i + 1}: name and rollNumber required`);
         results.skipped++;
         continue;
       }
 
       let collegeId = row.collegeId || row.college_id || null;
-      const collegeCode = (row.collegeCode || row.college_code || row.CollegeCode || "").toString().toUpperCase();
+      const collegeCode = (
+        row.collegeCode ||
+        row.college_code ||
+        row.CollegeCode ||
+        ""
+      )
+        .toString()
+        .toUpperCase();
       if (!collegeId && collegeCode) collegeId = collegeByCode[collegeCode] || null;
 
       if (auth.session!.user.role === Role.COLLEGE_ADMIN) {
@@ -52,47 +74,66 @@ export async function POST(req: Request) {
       }
 
       if (!collegeId) {
-        results.errors.push(`Row ${i + 1} (${email}): college required`);
+        results.errors.push(`Row ${i + 1} (${roll}): college required`);
         results.skipped++;
         continue;
       }
 
       let departmentId = row.departmentId || row.department_id || null;
-      const deptCode = (row.departmentCode || row.department_code || row.DepartmentCode || "").toString().toUpperCase();
+      const deptCode = (
+        row.departmentCode ||
+        row.department_code ||
+        row.DepartmentCode ||
+        ""
+      )
+        .toString()
+        .toUpperCase();
       if (!departmentId && deptCode) {
         departmentId = deptByKey[`${collegeId}:${deptCode}`] || null;
       }
 
       const yearRaw = row.year || row.Year;
-      const year = yearRaw != null && yearRaw !== "" ? parseInt(String(yearRaw), 10) : null;
-      const rollRaw = row.rollNumber || row.RollNumber || row.roll || row.Roll || row["Roll Number"] || row["roll number"];
-      const rollNumber = rollRaw != null && String(rollRaw).trim() !== "" ? String(rollRaw).trim() : null;
+      const year =
+        yearRaw != null && yearRaw !== "" ? parseInt(String(yearRaw), 10) : null;
 
-      const existing = await prisma.user.findUnique({ where: { email } });
-      if (existing) {
-        results.errors.push(`Row ${i + 1} (${email}): already exists`);
+      const existingRoll = await prisma.user.findFirst({
+        where: { rollNumber: { equals: roll, mode: "insensitive" } },
+      });
+      if (existingRoll) {
+        results.errors.push(`Row ${i + 1} (${roll}): roll number already exists`);
         results.skipped++;
         continue;
       }
 
-      const pwd = row.password ? await hash(String(row.password), 12) : defaultPassword;
+      if (emailVal) {
+        const existingEmail = await prisma.user.findUnique({ where: { email: emailVal } });
+        if (existingEmail) {
+          results.errors.push(`Row ${i + 1} (${emailVal}): email already exists`);
+          results.skipped++;
+          continue;
+        }
+      }
+
+      const pwd = row.password
+        ? await hash(String(row.password), 12)
+        : defaultPassword;
 
       try {
         await prisma.user.create({
           data: {
             name,
-            email,
+            email: emailVal,
             password: pwd,
             role: Role.STUDENT,
             collegeId,
             departmentId: departmentId || null,
             year: Number.isFinite(year) ? year : null,
-            rollNumber,
+            rollNumber: roll,
           },
         });
         results.created++;
       } catch (e: any) {
-        results.errors.push(`Row ${i + 1} (${email}): ${e.message}`);
+        results.errors.push(`Row ${i + 1} (${roll}): ${e.message}`);
         results.skipped++;
       }
     }
