@@ -6,7 +6,7 @@ import { hash } from "bcryptjs";
 /**
  * Bulk create students from CSV/JSON array.
  * Expected fields per row: name, email, password (optional), collegeCode or collegeId,
- * departmentCode (optional), year (optional)
+ * departmentCode (optional), year (optional), rollNumber / roll (optional)
  */
 export async function POST(req: Request) {
   const auth = await requireAuth([Role.SUPER_ADMIN, Role.COLLEGE_ADMIN]);
@@ -65,6 +65,8 @@ export async function POST(req: Request) {
 
       const yearRaw = row.year || row.Year;
       const year = yearRaw != null && yearRaw !== "" ? parseInt(String(yearRaw), 10) : null;
+      const rollRaw = row.rollNumber || row.RollNumber || row.roll || row.Roll || row["Roll Number"] || row["roll number"];
+      const rollNumber = rollRaw != null && String(rollRaw).trim() !== "" ? String(rollRaw).trim() : null;
 
       const existing = await prisma.user.findUnique({ where: { email } });
       if (existing) {
@@ -85,6 +87,7 @@ export async function POST(req: Request) {
             collegeId,
             departmentId: departmentId || null,
             year: Number.isFinite(year) ? year : null,
+            rollNumber,
           },
         });
         results.created++;

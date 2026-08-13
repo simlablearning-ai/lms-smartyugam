@@ -26,6 +26,7 @@ export default function CollegeStudentsPage() {
     name: "",
     email: "",
     password: "password123",
+      rollNumber: "",
     departmentId: "",
     year: "1",
   });
@@ -60,7 +61,8 @@ export default function CollegeStudentsPage() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ name: "", email: "", password: "password123", departmentId: "", year: "1" });
+    setForm({ name: "", email: "", password: "password123",
+      rollNumber: "", departmentId: "", year: "1" });
     setError("");
     setModalOpen(true);
   }
@@ -70,6 +72,7 @@ export default function CollegeStudentsPage() {
     setForm({
       name: s.name,
       email: s.email,
+      rollNumber: s.rollNumber || "",
       password: "",
       departmentId: s.department?.id || "",
       year: s.year?.toString() || "",
@@ -154,7 +157,8 @@ export default function CollegeStudentsPage() {
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="text-left px-6 py-3 font-medium text-slate-600">Student</th>
-                <th className="text-left px-6 py-3 font-medium text-slate-600">Email</th>
+                <th className="text-left px-6 py-3 font-medium text-slate-600">Roll No.</th>
+                  <th className="text-left px-6 py-3 font-medium text-slate-600">Email</th>
                 <th className="text-left px-6 py-3 font-medium text-slate-600">Department</th>
                 <th className="text-left px-6 py-3 font-medium text-slate-600">Year</th>
                 <th className="text-right px-6 py-3 font-medium text-slate-600">Actions</th>
@@ -176,7 +180,8 @@ export default function CollegeStudentsPage() {
                         <span className="font-medium text-slate-900">{s.name}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-600">{s.email}</td>
+                    <td className="px-6 py-4 text-slate-600 font-mono text-xs">{s.rollNumber || "—"}</td>
+                  <td className="px-6 py-4 text-slate-600">{s.email}</td>
                     <td className="px-6 py-4 text-slate-600">{s.department?.name || "—"}</td>
                     <td className="px-6 py-4 text-slate-600">
                       {s.year ? `${s.year}${s.year === 1 ? "st" : s.year === 2 ? "nd" : s.year === 3 ? "rd" : "th"} Year` : "—"}
@@ -210,6 +215,12 @@ export default function CollegeStudentsPage() {
             <label className="block text-sm font-medium text-slate-700 mb-1">Email *</label>
             <input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Roll Number</label>
+              <input value={form.rollNumber} onChange={(e) => setForm({ ...form, rollNumber: e.target.value })}
+                placeholder="e.g. CSE21B001"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">

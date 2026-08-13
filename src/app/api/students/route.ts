@@ -32,6 +32,7 @@ export async function GET(req: Request) {
       id: true,
       name: true,
       email: true,
+      rollNumber: true,
       year: true,
       isActive: true,
       createdAt: true,
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    let { name, email, password, collegeId, departmentId, year } = body;
+    let { name, email, password, collegeId, departmentId, year, rollNumber } = body;
 
     if (!name || !email) {
       return error("Name and Email are required");
@@ -81,6 +82,7 @@ export async function POST(req: Request) {
         collegeId,
         departmentId: departmentId || null,
         year: year ? parseInt(year) : null,
+        rollNumber: rollNumber ? String(rollNumber).trim() : null,
       },
       select: {
         id: true,

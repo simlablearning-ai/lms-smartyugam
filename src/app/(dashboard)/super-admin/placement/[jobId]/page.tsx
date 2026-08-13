@@ -116,7 +116,7 @@ export default function JobApplicantsPage({ params }: { params: Promise<{ jobId:
                   <tr key={a.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3">
                       <p className="font-medium">{a.student?.name}</p>
-                      <p className="text-xs text-slate-400">{a.student?.email}</p>
+                      <p className="text-xs text-slate-400">{a.student?.rollNumber ? `${a.student.rollNumber} · ` : ""}{a.student?.email}</p>
                       {a.appHeadline && <p className="text-[11px] text-[#c45c26] mt-0.5">{a.appHeadline}</p>}
                       {a.coverLetter && <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">{a.coverLetter}</p>}
                       {(a.appResume || a.student?.placementProfile?.resumeUrl) && (

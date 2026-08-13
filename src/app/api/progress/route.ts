@@ -25,6 +25,7 @@ export async function GET(req: Request) {
       id: true,
       name: true,
       email: true,
+      rollNumber: true,
       year: true,
       college: { select: { id: true, name: true, code: true } },
       department: { select: { id: true, name: true, code: true } },

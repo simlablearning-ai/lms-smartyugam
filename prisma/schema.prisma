@@ -65,6 +65,7 @@ model User {
   password      String
   name          String
   role          Role      @default(STUDENT)
+  rollNumber    String?   // college roll / register number
   collegeId     String?
   departmentId  String?
   year          Int?      // studying year e.g. 1,2,3,4
@@ -93,6 +94,7 @@ model User {
 
   @@index([collegeId])
   @@index([role])
+  @@index([rollNumber])
 }
 
 model College {

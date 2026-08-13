@@ -50,9 +50,10 @@ export default function TestResultsPage({ params }: { params: Promise<{ testId: 
   function exportCsv() {
     if (!data?.attempts?.length) return;
     const rows = [
-      ["Student", "Email", "Dept", "Year", "Score", "Percentage", "Status", "Violations", "Submitted"],
+      ["Name", "Roll Number", "Email", "Dept", "Year", "Score", "Percentage", "Status", "Violations", "Submitted"],
       ...data.attempts.map((a: any) => [
         a.student?.name,
+        a.student?.rollNumber || "",
         a.student?.email,
         a.student?.department?.code || "",
         a.student?.year || "",
@@ -121,6 +122,7 @@ export default function TestResultsPage({ params }: { params: Promise<{ testId: 
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Student</th>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">Roll No.</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Email</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Dept</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Score</th>
@@ -133,13 +135,14 @@ export default function TestResultsPage({ params }: { params: Promise<{ testId: 
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  <tr><td colSpan={9} className="px-4 py-12 text-center text-slate-500">Loading...</td></tr>
+                  <tr><td colSpan={10} className="px-4 py-12 text-center text-slate-500">Loading...</td></tr>
                 ) : !data?.attempts?.length ? (
-                  <tr><td colSpan={9} className="px-4 py-12 text-center text-slate-500">No attempts yet</td></tr>
+                  <tr><td colSpan={10} className="px-4 py-12 text-center text-slate-500">No attempts yet</td></tr>
                 ) : (
                   data.attempts.map((a: any) => (
                     <tr key={a.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 font-medium text-slate-900">{a.student?.name}</td>
+                      <td className="px-4 py-3 text-xs font-mono text-slate-600">{a.student?.rollNumber || "—"}</td>
                       <td className="px-4 py-3 text-slate-600 text-xs">{a.student?.email}</td>
                       <td className="px-4 py-3">
                         {a.student?.department && (
@@ -195,7 +198,7 @@ export default function TestResultsPage({ params }: { params: Promise<{ testId: 
       <Modal
         open={!!detail || detailLoading}
         onClose={() => setDetail(null)}
-        title={detail ? `Results: ${detail.student?.name}` : "Loading..."}
+        title={detail ? `Results: ${detail.student?.name}${detail.student?.rollNumber ? ` (${detail.student.rollNumber})` : ""}` : "Loading..."}
         size="lg"
       >
         {detailLoading && <p className="text-center text-slate-500 py-8">Loading...</p>}

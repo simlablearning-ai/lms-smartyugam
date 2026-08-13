@@ -12,6 +12,7 @@ type Student = {
   id: string;
   name: string;
   email: string;
+  rollNumber: string | null;
   year: number | null;
   isActive: boolean;
   college: College | null;
@@ -32,6 +33,7 @@ export default function StudentsPage() {
     name: "",
     email: "",
     password: "",
+    rollNumber: "",
     collegeId: "",
     departmentId: "",
     year: "",
@@ -84,6 +86,7 @@ export default function StudentsPage() {
       name: "",
       email: "",
       password: "password123",
+      rollNumber: "",
       collegeId: colleges[0]?.id || "",
       departmentId: "",
       year: "1",
@@ -97,6 +100,7 @@ export default function StudentsPage() {
     setForm({
       name: s.name,
       email: s.email,
+      rollNumber: s.rollNumber || "",
       password: "",
       collegeId: s.college?.id || "",
       departmentId: s.department?.id || "",
@@ -189,7 +193,7 @@ export default function StudentsPage() {
   }
 
   function downloadTemplate() {
-    const csv = "name,email,password,collegeCode,departmentCode,year\nJohn Doe,john@college.edu,password123,SYIT,CSE,1\n";
+    const csv = "name,email,password,collegeCode,departmentCode,year,rollNumber\nJohn Doe,john@college.edu,password123,SYIT,CSE,1,CSE21B001\n";
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -306,6 +310,7 @@ export default function StudentsPage() {
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th className="text-left px-6 py-3 font-medium text-slate-600">Student</th>
+                  <th className="text-left px-6 py-3 font-medium text-slate-600">Roll No.</th>
                   <th className="text-left px-6 py-3 font-medium text-slate-600">Email</th>
                   <th className="text-left px-6 py-3 font-medium text-slate-600">College</th>
                   <th className="text-left px-6 py-3 font-medium text-slate-600">Department</th>
@@ -329,7 +334,8 @@ export default function StudentsPage() {
                           <span className="font-medium text-slate-900">{s.name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-slate-600">{s.email}</td>
+                      <td className="px-6 py-4 text-slate-600 font-mono text-xs">{s.rollNumber || "—"}</td>
+                  <td className="px-6 py-4 text-slate-600">{s.email}</td>
                       <td className="px-6 py-4 text-slate-600">{s.college?.name || "—"}</td>
                       <td className="px-6 py-4 text-slate-600">{s.department?.name || "—"}</td>
                       <td className="px-6 py-4 text-slate-600">
@@ -369,6 +375,12 @@ export default function StudentsPage() {
               <label className="block text-sm font-medium text-slate-700 mb-1">Email *</label>
               <input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Roll Number</label>
+              <input value={form.rollNumber} onChange={(e) => setForm({ ...form, rollNumber: e.target.value })}
+                placeholder="e.g. CSE21B001"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
             </div>
           </div>
           <div>
@@ -434,7 +446,7 @@ export default function StudentsPage() {
         <div className="space-y-4">
           <p className="text-sm text-slate-600">
             Upload <strong>Excel (.xlsx / .xls)</strong> or <strong>CSV</strong>. Columns:{" "}
-            <code className="text-xs bg-slate-100 px-1 rounded">name, email, password, collegeCode, departmentCode, year</code>
+            <code className="text-xs bg-slate-100 px-1 rounded">name, email, password, collegeCode, departmentCode, year, rollNumber</code>
           </p>
 
           <div
@@ -473,7 +485,7 @@ export default function StudentsPage() {
               value={bulkText}
               onChange={(e) => { setBulkText(e.target.value); setBulkFile(null); setBulkPreview([]); }}
               rows={5}
-              placeholder={"name,email,password,collegeCode,departmentCode,year\nJohn Doe,john@syit.edu,password123,SYIT,CSE,1"}
+              placeholder={"name,email,password,collegeCode,departmentCode,year,rollNumber\nJohn Doe,john@syit.edu,password123,SYIT,CSE,1,CSE21B001"}
               className="mt-2 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </details>

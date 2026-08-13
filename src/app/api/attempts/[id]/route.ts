@@ -23,7 +23,7 @@ export async function GET(
         },
       },
       answers: true,
-      student: { select: { id: true, name: true, email: true } },
+      student: { select: { id: true, name: true, email: true, rollNumber: true } },
     },
   });
 

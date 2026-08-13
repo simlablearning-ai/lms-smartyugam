@@ -72,7 +72,7 @@ export default function CollegeJobPage({ params }: { params: Promise<{ jobId: st
                   <tr key={a.id}>
                     <td className="px-4 py-3">
                       <p className="font-medium">{a.student?.name}</p>
-                      <p className="text-xs text-slate-400">{a.student?.email}</p>
+                      <p className="text-xs text-slate-400">{a.student?.rollNumber ? `${a.student.rollNumber} · ` : ""}{a.student?.email}</p>
                       {a.appSkills && <p className="text-[11px] text-[#6b6560] mt-0.5">Skills: {a.appSkills}</p>}
                       {(a.appResume || a.student?.placementProfile?.resumeUrl) && (
                         <a className="text-[11px] text-[#c45c26] font-medium" href={a.appResume || a.student?.placementProfile?.resumeUrl} target="_blank" rel="noreferrer">

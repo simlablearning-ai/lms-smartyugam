@@ -13,7 +13,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { name, email, password, departmentId, year, isActive } = body;
+    const { name, email, password, departmentId, year, isActive, rollNumber } = body;
 
     const existing = await prisma.user.findUnique({ where: { id } });
     if (!existing || existing.role !== Role.STUDENT) {
@@ -32,6 +32,7 @@ export async function PUT(
     if (email !== undefined) data.email = email.toLowerCase();
     if (departmentId !== undefined) data.departmentId = departmentId || null;
     if (year !== undefined) data.year = year ? parseInt(year) : null;
+    if (rollNumber !== undefined) data.rollNumber = rollNumber ? String(rollNumber).trim() : null;
     if (isActive !== undefined) data.isActive = isActive;
     if (password) data.password = await hash(password, 12);
 
@@ -42,6 +43,7 @@ export async function PUT(
         id: true,
         name: true,
         email: true,
+        rollNumber: true,
         year: true,
         isActive: true,
         college: { select: { id: true, name: true, code: true } },

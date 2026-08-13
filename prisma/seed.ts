@@ -106,6 +106,7 @@ async function main() {
       password,
       name: "Aarav Patel",
       role: Role.STUDENT,
+      rollNumber: "SYIT/CSE/21/001",
       collegeId: college1.id,
       departmentId: cse.id,
       year: 3,
@@ -118,6 +119,7 @@ async function main() {
       password,
       name: "Ananya Reddy",
       role: Role.STUDENT,
+      rollNumber: "SYIT/CSE/21/002",
       collegeId: college1.id,
       departmentId: cse.id,
       year: 2,
@@ -128,6 +130,7 @@ async function main() {
     data: {
       email: "student3@gec.edu",
       password,
+      rollNumber: "GEC/ME/20/015",
       name: "Rohan Mehta",
       role: Role.STUDENT,
       collegeId: college2.id,

@@ -34,6 +34,7 @@ export async function GET(req: Request) {
       id: true,
       name: true,
       email: true,
+        rollNumber: true,
       year: true,
       department: { select: { name: true, code: true } },
       college: { select: { name: true, code: true } },
@@ -102,6 +103,7 @@ export async function GET(req: Request) {
       lines.push(
         [
           escape(student.name),
+          escape(student.rollNumber || ""),
           escape(student.email),
           escape(student.college?.name),
           escape(student.department?.name),
@@ -119,6 +121,7 @@ export async function GET(req: Request) {
         lines.push(
           [
             escape(student.name),
+            escape(student.rollNumber || ""),
             escape(student.email),
             escape(student.college?.name),
             escape(student.department?.name),

@@ -29,6 +29,7 @@ export async function GET(
             id: true,
             name: true,
             email: true,
+            rollNumber: true,
             year: true,
             department: { select: { name: true, code: true } },
             college: { select: { name: true, code: true } },
