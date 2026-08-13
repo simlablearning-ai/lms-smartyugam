@@ -13,6 +13,7 @@ type Test = {
   totalMarks: number;
   isProctored: boolean;
   maxAttempts: number;
+  course?: { id: string; title: string } | null;
   _count: { attempts: number; questions: number };
 };
 
