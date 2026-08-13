@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Modal } from "@/components/ui/Modal";
-import { ClipboardList, Plus, Trash2, Search, Shield } from "lucide-react";
+import { ClipboardList, Plus, Pencil, Trash2, Search, Shield } from "lucide-react";
 
 type Test = {
   id: string;
@@ -30,13 +30,17 @@ export default function CollegeTestsPage() {
     title: "",
     description: "",
     departmentId: "",
+    courseId: "",
     durationMinutes: "60",
     totalMarks: "100",
     passingMarks: "40",
     isProctored: true,
     status: "PUBLISHED",
     maxAttempts: "2",
+    questionBankId: "",
     questionIds: [] as string[],
+    startTime: "",
+    endTime: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -72,13 +76,17 @@ export default function CollegeTestsPage() {
       title: "",
       description: "",
       departmentId: "",
+      courseId: "",
       durationMinutes: "60",
       totalMarks: "100",
       passingMarks: "40",
       isProctored: true,
       status: "PUBLISHED",
       maxAttempts: "2",
+      questionBankId: "",
       questionIds: [],
+      startTime: "",
+      endTime: "",
     });
     setError("");
     setModalOpen(true);

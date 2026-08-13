@@ -18,8 +18,12 @@ type Test = {
   maxAttempts: number;
   startTime?: string | null;
   endTime?: string | null;
-  college?: { name: string };
-  department?: { name: string } | null;
+  collegeId?: string;
+  departmentId?: string | null;
+  courseId?: string | null;
+  description?: string | null;
+  college?: { id?: string; name: string };
+  department?: { id?: string; name: string } | null;
   _count: { attempts: number; questions: number };
 };
 
@@ -125,7 +129,7 @@ export default function TestsPage() {
       title: t.title,
       description: (t as any).description || "",
       collegeId: (t as any).collegeId || (t as any).college?.id || "",
-      departmentId: (t as any).departmentId || t.department?.id || "",
+      departmentId: (t as any).departmentId || (t.department as any)?.id || "",
       courseId: (t as any).courseId || "",
       durationMinutes: String(t.durationMinutes || 60),
       totalMarks: String(t.totalMarks || 100),
