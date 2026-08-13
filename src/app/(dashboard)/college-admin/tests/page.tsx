@@ -25,6 +25,7 @@ export default function CollegeTestsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -66,6 +67,7 @@ export default function CollegeTestsPage() {
   }, []);
 
   function openCreate() {
+    setEditing(null);
     setForm({
       title: "",
       description: "",
@@ -82,13 +84,36 @@ export default function CollegeTestsPage() {
     setModalOpen(true);
   }
 
+
+  function openEdit(t: any) {
+    setEditing(t);
+    setForm({
+      title: t.title || "",
+      description: t.description || "",
+      departmentId: t.departmentId || t.department?.id || "",
+      courseId: t.courseId || "",
+      durationMinutes: String(t.durationMinutes || 60),
+      totalMarks: String(t.totalMarks || 100),
+      passingMarks: String(t.passingMarks || 40),
+      isProctored: !!t.isProctored,
+      status: t.status || "PUBLISHED",
+      maxAttempts: String(t.maxAttempts ?? 1),
+      questionBankId: "",
+      questionIds: [],
+      startTime: "",
+      endTime: "",
+    });
+    setError("");
+    setModalOpen(true);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError("");
     try {
-      const res = await fetch("/api/tests", {
-        method: "POST",
+      const res = await fetch(editing ? `/api/tests/${editing.id}` : "/api/tests", {
+        method: editing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
@@ -99,6 +124,7 @@ export default function CollegeTestsPage() {
         return;
       }
       setModalOpen(false);
+      setEditing(null);
       load();
     } catch {
       setError("Network error");
@@ -238,6 +264,9 @@ export default function CollegeTestsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end">
+                        <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-500 hover:text-indigo-600" title="Edit">
+                          <Pencil className="h-4 w-4" />
+                        </button>
                         <button onClick={() => handleDelete(t.id, t.title)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-500 hover:text-red-600">
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -251,7 +280,7 @@ export default function CollegeTestsPage() {
         </div>
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Create Test" size="lg">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? "Edit Test" : "Create Test"} size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Title *</label>

@@ -27,20 +27,7 @@ export async function POST(req: Request) {
       return error(live.reason || "This test is not live yet.", 403);
     }
 
-    // Check max attempts
-    const existingAttempts = await prisma.testAttempt.count({
-      where: {
-        testId,
-        studentId: auth.session!.user.id,
-        status: { in: ["SUBMITTED", "AUTO_SUBMITTED", "IN_PROGRESS"] },
-      },
-    });
-
-    if (existingAttempts >= test.maxAttempts) {
-      return error(`Maximum attempts (${test.maxAttempts}) reached`);
-    }
-
-    // Check if already in progress
+    // Resume in-progress attempt first (iOS refresh / reconnect must not burn an attempt)
     const inProgress = await prisma.testAttempt.findFirst({
       where: {
         testId,
@@ -51,6 +38,21 @@ export async function POST(req: Request) {
 
     if (inProgress) {
       return json(inProgress);
+    }
+
+    // Only finished attempts count toward the limit
+    const finishedAttempts = await prisma.testAttempt.count({
+      where: {
+        testId,
+        studentId: auth.session!.user.id,
+        status: { in: ["SUBMITTED", "AUTO_SUBMITTED", "VIOLATED"] },
+      },
+    });
+
+    if (finishedAttempts >= test.maxAttempts) {
+      return error(
+        `Maximum attempts (${test.maxAttempts}) reached. Ask your admin to increase attempts if needed.`
+      );
     }
 
     const attempt = await prisma.testAttempt.create({

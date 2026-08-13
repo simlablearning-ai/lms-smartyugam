@@ -74,6 +74,7 @@ export async function PUT(
       departmentId,
       courseId,
       questionIds,
+      questionBankId,
       startTime,
       endTime,
     } = body;
@@ -88,8 +89,25 @@ export async function PUT(
       return error("Forbidden", 403);
     }
 
-    // Replace linked questions if questionIds provided
-    if (Array.isArray(questionIds)) {
+    // Replace linked questions if question bank or questionIds provided
+    if (questionBankId) {
+      const bankQuestions = await prisma.question.findMany({
+        where: { questionBankId, isActive: true },
+        select: { id: true, marks: true },
+        orderBy: { createdAt: "asc" },
+      });
+      await prisma.testQuestion.deleteMany({ where: { testId: id } });
+      if (bankQuestions.length) {
+        await prisma.testQuestion.createMany({
+          data: bankQuestions.map((q, idx) => ({
+            testId: id,
+            questionId: q.id,
+            order: idx + 1,
+            marks: q.marks || 1,
+          })),
+        });
+      }
+    } else if (Array.isArray(questionIds)) {
       await prisma.testQuestion.deleteMany({ where: { testId: id } });
       if (questionIds.length > 0) {
         await prisma.testQuestion.createMany({

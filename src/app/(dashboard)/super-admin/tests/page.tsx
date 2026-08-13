@@ -35,6 +35,7 @@ export default function TestsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Test | null>(null);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -94,6 +95,7 @@ export default function TestsPage() {
   }, []);
 
   function openCreate() {
+    setEditing(null);
     setForm({
       title: "",
       description: "",
@@ -116,11 +118,36 @@ export default function TestsPage() {
     setModalOpen(true);
   }
 
+
+  function openEdit(t: Test) {
+    setEditing(t);
+    setForm({
+      title: t.title,
+      description: (t as any).description || "",
+      collegeId: (t as any).collegeId || (t as any).college?.id || "",
+      departmentId: (t as any).departmentId || t.department?.id || "",
+      courseId: (t as any).courseId || "",
+      durationMinutes: String(t.durationMinutes || 60),
+      totalMarks: String(t.totalMarks || 100),
+      passingMarks: String(t.passingMarks || 40),
+      isProctored: t.isProctored,
+      status: t.status || "PUBLISHED",
+      maxAttempts: String(t.maxAttempts ?? 1),
+      questionBankId: "",
+      questionIds: [],
+      startTime: utcToIstLocalInput(t.startTime),
+      endTime: utcToIstLocalInput(t.endTime),
+    });
+    setError("");
+    setModalOpen(true);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError("");
-    if (!form.questionBankId && !form.questionIds.length) {
+    // Creating requires a question bank; editing can skip (keep existing questions)
+    if (!editing && !form.questionBankId && !form.questionIds.length) {
       setError("Select a Question Bank (all its questions will be used)");
       setSaving(false);
       return;
@@ -131,7 +158,6 @@ export default function TestsPage() {
       const payload: any = {
         title: form.title,
         description: form.description,
-        collegeId: form.collegeId,
         departmentId: form.departmentId || null,
         courseId: form.courseId || null,
         durationMinutes: form.durationMinutes,
@@ -143,13 +169,20 @@ export default function TestsPage() {
         startTime: start ? start.toISOString() : null,
         endTime: end ? end.toISOString() : null,
       };
-      if (form.questionBankId) {
+      if (!editing) {
+        payload.collegeId = form.collegeId;
+        if (form.questionBankId) {
+          payload.questionBankId = form.questionBankId;
+        } else {
+          payload.questionIds = form.questionIds;
+        }
+      } else if (form.questionBankId) {
+        // Optional: replace questions when editing if a bank is selected
         payload.questionBankId = form.questionBankId;
-      } else {
-        payload.questionIds = form.questionIds;
       }
-      const res = await fetch("/api/tests", {
-        method: "POST",
+
+      const res = await fetch(editing ? `/api/tests/${editing.id}` : "/api/tests", {
+        method: editing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -160,6 +193,7 @@ export default function TestsPage() {
         return;
       }
       setModalOpen(false);
+      setEditing(null);
       load();
     } catch {
       setError("Network error");
@@ -446,6 +480,13 @@ export default function TestsPage() {
                               + Questions
                             </button>
                           )}
+                          <button
+                            onClick={() => openEdit(t)}
+                            className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-500 hover:text-indigo-600"
+                            title="Edit test (attempts, duration, schedule…)"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
                           <button onClick={() => handleDelete(t.id, t.title)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-500 hover:text-red-600">
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -461,7 +502,7 @@ export default function TestsPage() {
         </div>
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Create Test" size="lg">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? "Edit Test" : "Create Test"} size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Title *</label>
