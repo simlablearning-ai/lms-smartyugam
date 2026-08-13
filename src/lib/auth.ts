@@ -53,32 +53,45 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Login ID and password required");
         }
 
-        const loginId = credentials.email.trim();
+        // iOS often auto-capitalizes roll numbers — normalize carefully
+        const loginId = String(credentials.email).trim();
         const loginLower = loginId.toLowerCase();
+        const password = String(credentials.password);
 
-        // Try email first, then roll number (case-insensitive roll)
-        let user = await prisma.user.findFirst({
-          where: {
-            OR: [
-              { email: loginLower },
-              { rollNumber: loginId },
-              { rollNumber: { equals: loginId, mode: "insensitive" } },
-            ],
-          },
-        });
+        // Avoid Prisma mode:"insensitive" (can fail on some PG setups).
+        // Try exact email, exact roll, then case-insensitive roll via raw filter in JS fallback.
+        let user =
+          (await prisma.user.findFirst({
+            where: { email: loginLower },
+          })) ||
+          (await prisma.user.findFirst({
+            where: { rollNumber: loginId },
+          }));
+
+        if (!user) {
+          // Case-insensitive roll (iOS often capitalizes input)
+          user = await prisma.user.findFirst({
+            where: {
+              rollNumber: { equals: loginId, mode: "insensitive" },
+            },
+          });
+        }
 
         if (!user || !user.isActive) {
           throw new Error("Invalid credentials");
         }
 
-        const isValid = await compare(credentials.password, user.password);
+        const isValid = await compare(password, user.password);
         if (!isValid) {
           throw new Error("Invalid credentials");
         }
 
+        // NextAuth expects a stable string identity; students may have null email
+        const identity = user.email || user.rollNumber || user.id;
+
         return {
           id: user.id,
-          email: user.email,
+          email: identity,
           name: user.name,
           role: user.role,
           collegeId: user.collegeId,
@@ -122,5 +135,22 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 24 * 60 * 60,
   },
+  // iOS Safari cookie friendliness (same-site first-party)
+  cookies: {
+    sessionToken: {
+      name:
+        process.env.NODE_ENV === "production"
+          ? `__Secure-next-auth.session-token`
+          : `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
+  // Required on some hosts (Vercel) so CSRF/callback URLs resolve correctly
+  trustHost: true,
   secret: process.env.NEXTAUTH_SECRET,
-};
+} as NextAuthOptions;

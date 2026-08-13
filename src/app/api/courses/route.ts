@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAuth, json, error } from "@/lib/api-helpers";
 import { Role } from "@prisma/client";
+import { resolveCreatorId } from "@/lib/session-user";
 
 export async function GET(req: Request) {
   const auth = await requireAuth([Role.SUPER_ADMIN, Role.COLLEGE_ADMIN]);
@@ -37,6 +38,10 @@ export async function POST(req: Request) {
   if (auth.error) return auth.error;
 
   try {
+    const createdById = await resolveCreatorId(auth.session);
+    if (!createdById) {
+      return error("Your session is outdated (database was reset). Sign out and sign in again.", 401);
+    }
     const body = await req.json();
     let { title, description, code, collegeId, departmentId, passingScore } = body;
 
@@ -54,7 +59,7 @@ export async function POST(req: Request) {
         collegeId: collegeId || null,
         departmentId: departmentId || null,
         passingScore: passingScore ? parseInt(passingScore) : 40,
-        createdById: auth.session!.user.id,
+        createdById: createdById,
       },
       include: {
         college: { select: { id: true, name: true, code: true } },

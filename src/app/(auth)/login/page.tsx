@@ -1,12 +1,10 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2, Lock, Mail, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -17,17 +15,31 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const res = await signIn("credentials", { email, password, redirect: false });
+      const loginId = email.trim();
+      const res = await signIn("credentials", {
+        email: loginId,
+        password,
+        redirect: false,
+        callbackUrl: "/student",
+      });
       if (res?.error) {
-        setError("Invalid login ID or password");
+        setError("Invalid login ID or password. Check roll number and password.");
         setLoading(false);
         return;
       }
-      const sessionRes = await fetch("/api/auth/session");
+      // Small delay helps iOS Safari commit the session cookie before navigation
+      await new Promise((r) => setTimeout(r, 150));
+      const sessionRes = await fetch("/api/auth/session", { credentials: "include", cache: "no-store" });
       const session = await sessionRes.json();
-      if (session?.user?.role === "SUPER_ADMIN") router.push("/super-admin");
-      else if (session?.user?.role === "COLLEGE_ADMIN") router.push("/college-admin");
-      else router.push("/student");
+      const role = session?.user?.role;
+      // Full page navigation is more reliable on iOS than client router after login
+      if (role === "SUPER_ADMIN") {
+        window.location.assign("/super-admin");
+      } else if (role === "COLLEGE_ADMIN") {
+        window.location.assign("/college-admin");
+      } else {
+        window.location.assign("/student");
+      }
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
@@ -72,14 +84,36 @@ export default function LoginPage() {
               <label className="block text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-1.5">Email or Roll Number</label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9a948a]" />
-                <input type="text" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email or roll number" className="sy-input pl-10" />
+                <input
+                  type="text"
+                  name="username"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  inputMode="text"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Roll number or email"
+                  className="sy-input pl-10"
+                />
               </div>
             </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-1.5">Password</label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9a948a]" />
-                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="sy-input pl-10" />
+                <input
+                  type="password"
+                  name="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="sy-input pl-10"
+                />
               </div>
             </div>
             {error && <div className="text-sm text-[#a33] bg-[#fdecea] border border-[#f0c4c0] rounded-xl px-3 py-2.5">{error}</div>}

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAuth, json, error } from "@/lib/api-helpers";
 import { Role } from "@prisma/client";
+import { resolveCreatorId } from "@/lib/session-user";
 
 export async function GET(req: Request) {
   const auth = await requireAuth([Role.SUPER_ADMIN, Role.COLLEGE_ADMIN]);
@@ -73,7 +74,7 @@ export async function POST(req: Request) {
         collegeId: collegeId || null,
         departmentId: departmentId || null,
         questionBankId: questionBankId || null,
-        createdById: auth.session!.user.id,
+        createdById: (await resolveCreatorId(auth.session))!,
       },
     });
 
