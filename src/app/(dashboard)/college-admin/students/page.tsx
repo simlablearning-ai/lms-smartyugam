@@ -10,6 +10,7 @@ type Student = {
   id: string;
   name: string;
   email: string;
+  rollNumber: string | null;
   year: number | null;
   department: Department | null;
 };
@@ -26,7 +27,7 @@ export default function CollegeStudentsPage() {
     name: "",
     email: "",
     password: "password123",
-      rollNumber: "",
+    rollNumber: "",
     departmentId: "",
     year: "1",
   });
@@ -61,8 +62,14 @@ export default function CollegeStudentsPage() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ name: "", email: "", password: "password123",
-      rollNumber: "", departmentId: "", year: "1" });
+    setForm({
+      name: "",
+      email: "",
+      password: "password123",
+      rollNumber: "",
+      departmentId: "",
+      year: "1",
+    });
     setError("");
     setModalOpen(true);
   }
