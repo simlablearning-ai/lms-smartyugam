@@ -60,7 +60,7 @@ See the deployment guide. Main environment variables needed on Vercel:
 
 ## Demo Credentials
 
-All accounts use password: **`password123`**
+Fresh install: only Super Admin — **`password123`**
 
 | Role           | Email                      |
 |----------------|----------------------------|
