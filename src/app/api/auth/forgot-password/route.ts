@@ -21,6 +21,18 @@ export async function POST(req: Request) {
   const base = process.env.NEXTAUTH_URL || process.env.APP_URL || "http://localhost:3000";
   const link = `${base}/reset-password?token=${token}`;
 
+  if (!user.email) {
+    // Students may have no email — only in-app notice
+    await notifyUser({
+      userId: user.id,
+      title: "Password reset requested",
+      body: "A password reset was requested but no email is on file. Contact your admin to reset your password.",
+      type: "ACCOUNT",
+      email: false,
+    });
+    return json({ ok: true });
+  }
+
   await sendEmail({
     to: user.email,
     subject: "Reset your SmartYugam LMS password",

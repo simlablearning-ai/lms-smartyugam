@@ -30,14 +30,16 @@ export async function POST(req: Request) {
       type: "ACCOUNT",
       email: false,
     });
-    await sendEmail({
-      to: user.email,
-      subject: "Your SmartYugam password was changed",
-      html: emailLayout(
-        "Password updated",
-        `<p>Hi ${user.name},</p><p>Your password was changed. If this wasn't you, contact your college admin immediately.</p>`
-      ),
-    });
+    if (user.email) {
+      await sendEmail({
+        to: user.email,
+        subject: "Your SmartYugam password was changed",
+        html: emailLayout(
+          "Password updated",
+          `<p>Hi ${user.name},</p><p>Your password was changed. If this wasn't you, contact your college admin immediately.</p>`
+        ),
+      });
+    }
   }
 
   return json({ ok: true });
