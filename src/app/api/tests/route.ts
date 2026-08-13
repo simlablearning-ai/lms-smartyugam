@@ -14,11 +14,24 @@ export async function GET(req: Request) {
 
   if (auth.session!.user.role === Role.COLLEGE_ADMIN) {
     where.collegeId = auth.session!.user.collegeId;
+    where.status = { not: "ARCHIVED" };
   } else if (auth.session!.user.role === Role.STUDENT) {
-    where.collegeId = auth.session!.user.collegeId;
+    // All published tests for the student's college:
+    // individual (GENERAL) and course-linked — both appear on student Assessments
+    const sidCollege = auth.session!.user.collegeId;
+    const sidDept = auth.session!.user.departmentId;
+    where.collegeId = sidCollege;
     where.status = "PUBLISHED";
+    // Department filter: show college-wide (null dept) OR matching dept
+    if (sidDept) {
+      where.OR = [{ departmentId: null }, { departmentId: sidDept }];
+    }
   } else if (collegeId) {
     where.collegeId = collegeId;
+    where.status = { not: "ARCHIVED" };
+  } else {
+    // Super admin: hide archived by default
+    where.status = { not: "ARCHIVED" };
   }
 
   if (departmentId) where.departmentId = departmentId;

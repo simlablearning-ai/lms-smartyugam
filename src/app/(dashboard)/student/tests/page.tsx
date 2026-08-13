@@ -60,6 +60,13 @@ export default function StudentTestsPage() {
                   )}
                 </div>
                 <h3 className="font-semibold text-slate-900 mb-1">{test.title}</h3>
+                <p className="text-[11px] mb-2">
+                  {test.course?.title ? (
+                    <span className="text-indigo-600 font-medium">Course: {test.course.title}</span>
+                  ) : (
+                    <span className="text-amber-700 font-medium">Individual test</span>
+                  )}
+                </p>
                 {test.description && (
                   <p className="text-xs text-slate-500 line-clamp-2 mb-3">{test.description}</p>
                 )}

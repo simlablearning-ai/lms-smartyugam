@@ -77,7 +77,7 @@ export default function StudentCertificatesPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">My Certificates</h1>
-          <p className="text-slate-500 mt-1">
+          <p className="text-slate-500 mt-1">Certificates are issued for completed courses only (not individual staff tests). 
             Certificates earned after passing courses
           </p>
         </div>

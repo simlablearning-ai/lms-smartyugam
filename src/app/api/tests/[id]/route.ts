@@ -153,13 +153,26 @@ export async function DELETE(
       return error("Forbidden", 403);
     }
 
-    await prisma.test.update({
-      where: { id },
-      data: { status: "ARCHIVED" },
+    // Permanent delete: clear dependents first (attempts may not cascade)
+    await prisma.answer.deleteMany({
+      where: { attempt: { testId: id } },
     });
+    await prisma.testAttempt.deleteMany({ where: { testId: id } });
+    await prisma.testQuestion.deleteMany({ where: { testId: id } });
+    // Unlink module assessments pointing at this test
+    await prisma.courseModule.updateMany({
+      where: { assessmentTestId: id },
+      data: { assessmentTestId: null },
+    });
+    await prisma.course.updateMany({
+      where: { finalTestId: id },
+      data: { finalTestId: null },
+    }).catch(() => {});
+
+    await prisma.test.delete({ where: { id } });
 
     return json({ success: true });
   } catch (e: any) {
-    return error(e.message || "Failed to archive test", 500);
+    return error(e.message || "Failed to delete test", 500);
   }
 }

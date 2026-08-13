@@ -25,6 +25,7 @@ type Test = {
 
 export default function TestsPage() {
   const [tests, setTests] = useState<Test[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [colleges, setColleges] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [questions, setQuestions] = useState<any[]>([]);
@@ -228,10 +229,41 @@ export default function TestsPage() {
     }
   }
 
-  async function handleArchive(id: string, title: string) {
-    if (!confirm(`Archive test "${title}"?`)) return;
+  async function handleDelete(id: string, title: string) {
+    if (!confirm(`Permanently delete test "${title}"? This removes attempts and cannot be undone.`)) return;
     const res = await fetch(`/api/tests/${id}`, { method: "DELETE" });
-    if (res.ok) load();
+    if (res.ok) {
+      setSelectedIds((s) => s.filter((x) => x !== id));
+      load();
+    } else {
+      const d = await res.json().catch(() => ({}));
+      alert(d.error || "Delete failed");
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  }
+
+  function toggleSelectAll(ids: string[]) {
+    setSelectedIds((s) => (s.length === ids.length ? [] : ids));
+  }
+
+  async function bulkDelete() {
+    if (!selectedIds.length) return;
+    if (!confirm(`Permanently delete ${selectedIds.length} test(s)?`)) return;
+    const res = await fetch("/api/tests/bulk-delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: selectedIds }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(d.error || "Bulk delete failed");
+      return;
+    }
+    setSelectedIds([]);
+    load();
   }
 
   async function toggleLive(id: string, current: string) {
@@ -304,6 +336,14 @@ export default function TestsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-4 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={filtered.length > 0 && selectedIds.length === filtered.length}
+                      onChange={() => toggleSelectAll(filtered.map((x: any) => x.id))}
+                      className="rounded border-slate-300"
+                    />
+                  </th>
                   <th className="text-left px-6 py-3 font-medium text-slate-600">Test</th>
                   <th className="text-left px-6 py-3 font-medium text-slate-600">Duration</th>
                   <th className="text-left px-6 py-3 font-medium text-slate-600">Marks</th>
@@ -316,14 +356,22 @@ export default function TestsPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  <tr><td colSpan={8} className="px-6 py-12 text-center text-slate-500">Loading...</td></tr>
+                  <tr><td colSpan={9} className="px-6 py-12 text-center text-slate-500">Loading...</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={8} className="px-6 py-12 text-center text-slate-500">No tests found.</td></tr>
+                  <tr><td colSpan={9} className="px-6 py-12 text-center text-slate-500">No tests found.</td></tr>
                 ) : (
                   filtered.map((t) => {
                     const liveInfo = checkTestLive(t);
                     return (
                     <tr key={t.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(t.id)}
+                          onChange={() => toggleSelect(t.id)}
+                          className="rounded border-slate-300"
+                        />
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="h-9 w-9 rounded-lg bg-rose-50 flex items-center justify-center">
@@ -398,7 +446,7 @@ export default function TestsPage() {
                               + Questions
                             </button>
                           )}
-                          <button onClick={() => handleArchive(t.id, t.title)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-500 hover:text-red-600">
+                          <button onClick={() => handleDelete(t.id, t.title)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-500 hover:text-red-600">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>

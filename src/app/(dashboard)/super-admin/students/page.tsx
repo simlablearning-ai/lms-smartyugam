@@ -21,6 +21,7 @@ type Student = {
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [colleges, setColleges] = useState<College[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -228,6 +229,26 @@ export default function StudentsPage() {
     }
   }
 
+  function toggleSelect(id: string) {
+    setSelectedIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  }
+  async function bulkDeleteStudents() {
+    if (!selectedIds.length) return;
+    if (!confirm(`Deactivate ${selectedIds.length} student(s)?`)) return;
+    const res = await fetch("/api/students/bulk-delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: selectedIds }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      alert(d.error || "Failed");
+      return;
+    }
+    setSelectedIds([]);
+    load();
+  }
+
   const filteredDepts = departments.filter(
     (d) => !form.collegeId || (d as any).college?.id === form.collegeId || !d.college
   );
@@ -304,11 +325,24 @@ export default function StudentsPage() {
           </select>
         </div>
 
+        {selectedIds.length > 0 && (
+          <div className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+            <span className="text-sm text-red-800 font-medium">{selectedIds.length} selected</span>
+            <button type="button" onClick={bulkDeleteStudents} className="text-sm font-semibold text-white bg-red-600 px-3 py-1.5 rounded-lg">Deactivate selected</button>
+            <button type="button" onClick={() => setSelectedIds([])} className="text-sm text-red-700">Clear</button>
+          </div>
+        )}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-4 py-3 w-10">
+                    <input type="checkbox" className="rounded border-slate-300"
+                      checked={filtered.length > 0 && selectedIds.length === filtered.length}
+                      onChange={(e) => setSelectedIds(e.target.checked ? filtered.map((x) => x.id) : [])}
+                    />
+                  </th>
                   <th className="text-left px-6 py-3 font-medium text-slate-600">Student</th>
                   <th className="text-left px-6 py-3 font-medium text-slate-600">Roll No.</th>
                   <th className="text-left px-6 py-3 font-medium text-slate-600">Email</th>
@@ -320,12 +354,15 @@ export default function StudentsPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-500">Loading...</td></tr>
+                  <tr><td colSpan={8} className="px-6 py-12 text-center text-slate-500">Loading...</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-500">No students found.</td></tr>
+                  <tr><td colSpan={8} className="px-6 py-12 text-center text-slate-500">No students found.</td></tr>
                 ) : (
                   filtered.map((s) => (
                     <tr key={s.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-4">
+                        <input type="checkbox" checked={selectedIds.includes(s.id)} onChange={() => toggleSelect(s.id)} className="rounded border-slate-300" />
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="h-9 w-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-700 font-semibold text-sm">

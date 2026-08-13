@@ -61,9 +61,18 @@ export async function POST(req: Request) {
       where: { studentId_courseId: { studentId: sid, courseId } },
     });
 
+    // Certificates only for course-mapped assessments (not standalone staff tests)
     const tests = await prisma.test.findMany({
-      where: { courseId, status: "PUBLISHED" },
+      where: {
+        courseId,
+        status: "PUBLISHED",
+        purpose: { in: ["MODULE", "FINAL", "GENERAL"] },
+        // must be linked to this course
+      },
     });
+    if (!tests.length) {
+      return error("No course-linked tests found. Certificates are only issued for course assessments, not individual standalone tests.");
+    }
 
     const attempts = await prisma.testAttempt.findMany({
       where: {
