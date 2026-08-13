@@ -210,7 +210,7 @@ export default function StudentsPage() {
   }
 
   function downloadTemplate() {
-    const csv = "name,rollNumber,password,collegeCode,departmentCode,year,email\nJohn Doe,john@college.edu,password123,SYIT,CSE,1,CSE21B001\n";
+    const csv = "name,rollNumber,password,collegeCode,departmentCode (auto-created if new),year,email\nJohn Doe,john@college.edu,password123,SYIT,CSE,1,CSE21B001\n";
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
