@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Modal } from "@/components/ui/Modal";
+import { useListPagination, ListPaginationBar } from "@/components/ui/ListPagination";
 import { ClipboardList, Plus, Pencil, Trash2, Search, Shield, CalendarClock } from "lucide-react";
 import Link from "next/link";
 import { istLocalInputToUtc, utcToIstLocalInput, formatIst, checkTestLive } from "@/lib/test-live";
@@ -348,7 +349,20 @@ export default function TestsPage() {
     (t) => !search || t.title.toLowerCase().includes(search.toLowerCase())
   );
 
-  return (
+  const {
+    page,
+    setPage,
+    viewAll,
+    setViewAll,
+    pageItems,
+    total,
+    totalPages,
+    from,
+    to,
+  } = useListPagination(filtered, 20);
+
+
+return (
     <DashboardShell role="SUPER_ADMIN">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -370,6 +384,18 @@ export default function TestsPage() {
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="px-4 pt-3 pb-1 border-b border-slate-100">
+            <ListPaginationBar
+              page={page}
+              setPage={setPage}
+              viewAll={viewAll}
+              setViewAll={setViewAll}
+              total={total}
+              totalPages={totalPages}
+              from={from}
+              to={to}
+            />
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -378,7 +404,7 @@ export default function TestsPage() {
                     <input
                       type="checkbox"
                       checked={filtered.length > 0 && selectedIds.length === filtered.length}
-                      onChange={() => toggleSelectAll(filtered.map((x: any) => x.id))}
+                      onChange={() => toggleSelectAll(pageItems.map((x: any) => x.id))}
                       className="rounded border-slate-300"
                     />
                   </th>
@@ -398,7 +424,7 @@ export default function TestsPage() {
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={9} className="px-6 py-12 text-center text-slate-500">No tests found.</td></tr>
                 ) : (
-                  filtered.map((t) => {
+                  pageItems.map((t) => {
                     const liveInfo = checkTestLive(t);
                     return (
                     <tr key={t.id} className="hover:bg-slate-50">

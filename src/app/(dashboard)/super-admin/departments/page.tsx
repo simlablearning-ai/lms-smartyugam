@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Modal } from "@/components/ui/Modal";
+import { useListPagination, ListPaginationBar } from "@/components/ui/ListPagination";
 import { GraduationCap, Plus, Pencil, Trash2, Search } from "lucide-react";
 
 type College = { id: string; name: string; code: string };
@@ -98,7 +99,7 @@ export default function DepartmentsPage() {
   }
 
   const filtered = departments.filter((d) => {
-    const matchSearch =
+const matchSearch =
       !search ||
       d.name.toLowerCase().includes(search.toLowerCase()) ||
       d.code.toLowerCase().includes(search.toLowerCase());
@@ -146,6 +147,18 @@ export default function DepartmentsPage() {
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="px-4 pt-3 pb-1 border-b border-slate-100">
+            <ListPaginationBar
+              page={page}
+              setPage={setPage}
+              viewAll={viewAll}
+              setViewAll={setViewAll}
+              total={total}
+              totalPages={totalPages}
+              from={from}
+              to={to}
+            />
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -164,7 +177,7 @@ export default function DepartmentsPage() {
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-500">No departments found.</td></tr>
                 ) : (
-                  filtered.map((d) => (
+                  pageItems.map((d) => (
                     <tr key={d.id} className="hover:bg-slate-50">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -237,4 +250,18 @@ export default function DepartmentsPage() {
       </Modal>
     </DashboardShell>
   );
+
+  const {
+    page,
+    setPage,
+    viewAll,
+    setViewAll,
+    pageItems,
+    total,
+    totalPages,
+    from,
+    to,
+  } = useListPagination(filtered, 20);
+
+
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Modal } from "@/components/ui/Modal";
+import { useListPagination, ListPaginationBar } from "@/components/ui/ListPagination";
 import { Users, Plus, Pencil, Trash2, Search, KeyRound } from "lucide-react";
 
 type Department = { id: string; name: string; code: string };
@@ -143,6 +144,19 @@ export default function CollegeStudentsPage() {
       s.email.toLowerCase().includes(search.toLowerCase())
   );
 
+  const {
+    page,
+    setPage,
+    viewAll,
+    setViewAll,
+    pageItems,
+    total,
+    totalPages,
+    from,
+    to,
+  } = useListPagination(filtered, 20);
+
+
   return (
     <DashboardShell role="COLLEGE_ADMIN">
       <div className="space-y-6">
@@ -190,7 +204,7 @@ export default function CollegeStudentsPage() {
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={5} className="px-6 py-12 text-center text-slate-500">No students found.</td></tr>
               ) : (
-                filtered.map((s) => (
+                pageItems.map((s) => (
                   <tr key={s.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">

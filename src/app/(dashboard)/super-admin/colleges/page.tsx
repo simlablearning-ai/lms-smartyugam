@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Modal } from "@/components/ui/Modal";
+import { useListPagination, ListPaginationBar } from "@/components/ui/ListPagination";
 import { Building2, Plus, MapPin, Users, Pencil, Trash2, Search } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
@@ -157,7 +158,7 @@ export default function CollegesPage() {
   }
 
   const filtered = colleges.filter((c) => {
-    const matchSearch =
+const matchSearch =
       !search ||
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.code.toLowerCase().includes(search.toLowerCase());
@@ -210,6 +211,18 @@ export default function CollegesPage() {
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="px-4 pt-3 pb-1 border-b border-slate-100">
+            <ListPaginationBar
+              page={page}
+              setPage={setPage}
+              viewAll={viewAll}
+              setViewAll={setViewAll}
+              total={total}
+              totalPages={totalPages}
+              from={from}
+              to={to}
+            />
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -238,7 +251,7 @@ export default function CollegesPage() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((college) => (
+                  pageItems.map((college) => (
                     <tr key={college.id} className="hover:bg-slate-50">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -450,4 +463,18 @@ export default function CollegesPage() {
       </Modal>
     </DashboardShell>
   );
+
+  const {
+    page,
+    setPage,
+    viewAll,
+    setViewAll,
+    pageItems,
+    total,
+    totalPages,
+    from,
+    to,
+  } = useListPagination(filtered, 20);
+
+
 }

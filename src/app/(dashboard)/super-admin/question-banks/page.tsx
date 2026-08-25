@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Modal } from "@/components/ui/Modal";
+import { useListPagination, ListPaginationBar } from "@/components/ui/ListPagination";
 import {
   FolderOpen,
   Plus,
@@ -109,7 +110,20 @@ export default function QuestionBanksPage() {
     (b) => !search || b.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  return (
+  const {
+    page,
+    setPage,
+    viewAll,
+    setViewAll,
+    pageItems,
+    total,
+    totalPages,
+    from,
+    to,
+  } = useListPagination(filtered, 20);
+
+
+return (
     <DashboardShell role="SUPER_ADMIN">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -177,7 +191,7 @@ export default function QuestionBanksPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((b) => (
+                pageItems.map((b) => (
                   <tr key={b.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">

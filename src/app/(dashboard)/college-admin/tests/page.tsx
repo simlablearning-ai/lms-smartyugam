@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Modal } from "@/components/ui/Modal";
+import { useListPagination, ListPaginationBar } from "@/components/ui/ListPagination";
 import { ClipboardList, Plus, Pencil, Trash2, Search, Shield } from "lucide-react";
 
 type Test = {
@@ -189,7 +190,20 @@ export default function CollegeTestsPage() {
     (t) => !search || t.title.toLowerCase().includes(search.toLowerCase())
   );
 
-  return (
+  const {
+    page,
+    setPage,
+    viewAll,
+    setViewAll,
+    pageItems,
+    total,
+    totalPages,
+    from,
+    to,
+  } = useListPagination(filtered, 20);
+
+
+return (
     <DashboardShell role="COLLEGE_ADMIN">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -222,7 +236,7 @@ export default function CollegeTestsPage() {
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-4 py-3 w-10">
                   <input type="checkbox" checked={filtered.length > 0 && selectedIds.length === filtered.length}
-                    onChange={() => toggleSelectAll(filtered.map((x: any) => x.id))} className="rounded border-slate-300" />
+                    onChange={() => toggleSelectAll(pageItems.map((x: any) => x.id))} className="rounded border-slate-300" />
                 </th>
                 <th className="text-left px-6 py-3 font-medium text-slate-600">Test</th>
                 <th className="text-left px-6 py-3 font-medium text-slate-600">Duration</th>
@@ -238,7 +252,7 @@ export default function CollegeTestsPage() {
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={7} className="px-6 py-12 text-center text-slate-500">No tests found.</td></tr>
               ) : (
-                filtered.map((t) => (
+                pageItems.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-50">
                     <td className="px-4 py-4">
                       <input type="checkbox" checked={selectedIds.includes(t.id)} onChange={() => toggleSelect(t.id)} className="rounded border-slate-300" />

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Modal } from "@/components/ui/Modal";
+import { useListPagination, ListPaginationBar } from "@/components/ui/ListPagination";
 import { Users, Plus, Pencil, Trash2, Search, Upload, Download, BarChart3, FileSpreadsheet, KeyRound } from "lucide-react";
 import { parseSpreadsheetFile, parseCsvText } from "@/lib/parse-spreadsheet";
 
@@ -271,11 +272,27 @@ export default function StudentsPage() {
 
   const filtered = students.filter((s) => {
     if (!search) return true;
+    const q = search.toLowerCase();
     return (
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.email.toLowerCase().includes(search.toLowerCase())
+      s.name.toLowerCase().includes(q) ||
+      (s.email || "").toLowerCase().includes(q) ||
+      (s.rollNumber || "").toLowerCase().includes(q)
     );
   });
+
+  const {
+    page,
+    setPage,
+    viewAll,
+    setViewAll,
+    pageItems,
+    total,
+    totalPages,
+    from,
+    to,
+  } = useListPagination(filtered, 20);
+
+
 
   return (
     <DashboardShell role="SUPER_ADMIN">
@@ -349,6 +366,18 @@ export default function StudentsPage() {
           </div>
         )}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="px-4 pt-3 pb-1 border-b border-slate-100">
+            <ListPaginationBar
+              page={page}
+              setPage={setPage}
+              viewAll={viewAll}
+              setViewAll={setViewAll}
+              total={total}
+              totalPages={totalPages}
+              from={from}
+              to={to}
+            />
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -356,7 +385,7 @@ export default function StudentsPage() {
                   <th className="px-4 py-3 w-10">
                     <input type="checkbox" className="rounded border-slate-300"
                       checked={filtered.length > 0 && selectedIds.length === filtered.length}
-                      onChange={(e) => setSelectedIds(e.target.checked ? filtered.map((x) => x.id) : [])}
+                      onChange={(e) => setSelectedIds(e.target.checked ? pageItems.map((x) => x.id) : [])}
                     />
                   </th>
                   <th className="text-left px-6 py-3 font-medium text-slate-600">Student</th>
@@ -374,7 +403,7 @@ export default function StudentsPage() {
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={8} className="px-6 py-12 text-center text-slate-500">No students found.</td></tr>
                 ) : (
-                  filtered.map((s) => (
+                  pageItems.map((s) => (
                     <tr key={s.id} className="hover:bg-slate-50">
                       <td className="px-4 py-4">
                         <input type="checkbox" checked={selectedIds.includes(s.id)} onChange={() => toggleSelect(s.id)} className="rounded border-slate-300" />

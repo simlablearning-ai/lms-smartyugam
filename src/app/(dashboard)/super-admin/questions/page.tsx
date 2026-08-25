@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Modal } from "@/components/ui/Modal";
+import { useListPagination, ListPaginationBar } from "@/components/ui/ListPagination";
 import { FileQuestion, Plus, Pencil, Trash2, Search, Upload, Download, FileSpreadsheet } from "lucide-react";
 import { parseSpreadsheetFile, parseCsvText } from "@/lib/parse-spreadsheet";
 
@@ -246,7 +247,20 @@ export default function QuestionsPage() {
     (q) => !search || q.text.toLowerCase().includes(search.toLowerCase())
   );
 
-  return (
+  const {
+    page,
+    setPage,
+    viewAll,
+    setViewAll,
+    pageItems,
+    total,
+    totalPages,
+    from,
+    to,
+  } = useListPagination(filtered, 20);
+
+
+return (
     <DashboardShell role="SUPER_ADMIN">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -283,6 +297,18 @@ export default function QuestionsPage() {
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="px-4 pt-3 pb-1 border-b border-slate-100">
+            <ListPaginationBar
+              page={page}
+              setPage={setPage}
+              viewAll={viewAll}
+              setViewAll={setViewAll}
+              total={total}
+              totalPages={totalPages}
+              from={from}
+              to={to}
+            />
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -301,7 +327,7 @@ export default function QuestionsPage() {
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-500">No questions found.</td></tr>
                 ) : (
-                  filtered.map((q) => (
+                  pageItems.map((q) => (
                     <tr key={q.id} className="hover:bg-slate-50">
                       <td className="px-6 py-4 max-w-md">
                         <p className="font-medium text-slate-900 line-clamp-2">{q.text}</p>
