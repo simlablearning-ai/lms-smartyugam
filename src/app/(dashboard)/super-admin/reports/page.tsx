@@ -55,6 +55,15 @@ export default function ReportsPage() {
       .catch(() => setTests([]));
   }, [filters.collegeId]);
 
+  // Re-fetch report whenever filters change (including selecting a test)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      void generateReport();
+    }, 200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.collegeId, filters.departmentId, filters.year, filters.testId]);
+
   const filteredDepts = useMemo(() => {
     if (!filters.collegeId) return departments;
     return departments.filter(

@@ -42,7 +42,7 @@ export async function GET(req: Request) {
     orderBy: { name: "asc" },
   });
 
-  const testWhere: any = { status: { in: ["PUBLISHED", "ARCHIVED"] } };
+  const testWhere: any = {};
   if (scopedCollegeId) testWhere.collegeId = scopedCollegeId;
   if (testId) testWhere.id = testId;
   else if (departmentId) testWhere.OR = [{ departmentId }, { departmentId: null }];

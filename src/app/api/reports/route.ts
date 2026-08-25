@@ -4,8 +4,7 @@ import { Role } from "@prisma/client";
 
 /**
  * Reports for Super Admin / College Admin.
- * Filters: collegeId, departmentId, year, testId
- * Views: summary | department | year | student | byTest
+ * Shows all tests (any status) that match filters, with completed-attempt stats.
  */
 export async function GET(req: Request) {
   const auth = await requireAuth([Role.SUPER_ADMIN, Role.COLLEGE_ADMIN]);
@@ -24,7 +23,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    // Students matching filters
+    // Students matching filters (for student-level breakdown)
     const studentWhere: any = {
       role: Role.STUDENT,
       isActive: true,
@@ -47,11 +46,9 @@ export async function GET(req: Request) {
       orderBy: { name: "asc" },
     });
 
-    // Tests: published + archived (completed exams must still appear in reports)
-    // Department filter: match dept OR college-wide (null department)
-    const testWhere: any = {
-      status: { in: ["PUBLISHED", "ARCHIVED"] },
-    };
+    // Tests: include ALL statuses so completed exams always appear
+    // (Results page lists them; Reports must match)
+    const testWhere: any = {};
     if (scopedCollegeId) testWhere.collegeId = scopedCollegeId;
     if (testId) {
       testWhere.id = testId;
@@ -59,7 +56,7 @@ export async function GET(req: Request) {
       testWhere.OR = [{ departmentId }, { departmentId: null }];
     }
 
-    const tests = await prisma.test.findMany({
+    let tests = await prisma.test.findMany({
       where: testWhere,
       select: {
         id: true,
@@ -68,6 +65,7 @@ export async function GET(req: Request) {
         totalMarks: true,
         passingMarks: true,
         departmentId: true,
+        collegeId: true,
         startTime: true,
         endTime: true,
         createdAt: true,
@@ -77,36 +75,131 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     });
 
+    // If a specific testId was requested but not found under filters, still try by id
+    // (avoids empty UI when dropdown shows the test but filters conflict)
+    if (testId && tests.length === 0) {
+      const one = await prisma.test.findUnique({
+        where: { id: testId },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          totalMarks: true,
+          passingMarks: true,
+          departmentId: true,
+          collegeId: true,
+          startTime: true,
+          endTime: true,
+          createdAt: true,
+          department: { select: { id: true, name: true, code: true } },
+          college: { select: { id: true, name: true, code: true } },
+        },
+      });
+      if (one) {
+        if (
+          auth.session!.user.role === Role.COLLEGE_ADMIN &&
+          one.collegeId !== auth.session!.user.collegeId
+        ) {
+          // forbidden
+        } else {
+          tests = [one];
+        }
+      }
+    }
+
     const studentIds = students.map((s) => s.id);
     const testIds = tests.map((t) => t.id);
 
-    // Completed attempts (include violated so reports are complete)
-    const attempts =
-      studentIds.length && testIds.length
-        ? await prisma.testAttempt.findMany({
-            where: {
-              studentId: { in: studentIds },
-              testId: { in: testIds },
-              status: { in: ["SUBMITTED", "AUTO_SUBMITTED", "VIOLATED"] },
-            },
-            select: {
-              id: true,
-              studentId: true,
-              testId: true,
-              score: true,
-              percentage: true,
-              submittedAt: true,
-              startedAt: true,
-              status: true,
-              timeSpentSec: true,
-            },
-          })
-        : [];
+    // Load completed attempts for these tests
+    // Prefer filtering by student set when year/dept filters apply;
+    // if no students match filters, still show tests with zero rows.
+    let attempts: {
+      id: string;
+      studentId: string;
+      testId: string;
+      score: number | null;
+      percentage: number | null;
+      submittedAt: Date | null;
+      startedAt: Date;
+      status: string;
+      timeSpentSec: number | null;
+    }[] = [];
 
-    // Per-test stats (for exam-level report)
+    if (testIds.length > 0) {
+      const attemptWhere: any = {
+        testId: { in: testIds },
+        status: { in: ["SUBMITTED", "AUTO_SUBMITTED", "VIOLATED"] },
+      };
+      // Only restrict by student when we have a student filter that returned IDs
+      // Year/dept filter: restrict attempts to those students
+      // No student filter fields: include all attempts on those tests
+      const studentFilterActive = !!(departmentId || year);
+      if (studentFilterActive) {
+        if (studentIds.length > 0) {
+          attemptWhere.studentId = { in: studentIds };
+        } else {
+          attemptWhere.studentId = { in: ["__none__"] };
+        }
+      } else if (scopedCollegeId && studentIds.length > 0) {
+        // College scope: prefer students of that college (incl. inactive who already attempted)
+        // Also include attempts from any student on these college tests
+      }
+
+      attempts = await prisma.testAttempt.findMany({
+        where: attemptWhere,
+        select: {
+          id: true,
+          studentId: true,
+          testId: true,
+          score: true,
+          percentage: true,
+          submittedAt: true,
+          startedAt: true,
+          status: true,
+          timeSpentSec: true,
+        },
+      });
+
+      // If college scoped and no year/dept filter, keep attempts tied to those tests
+      // (already fetched). Optionally drop attempts from students outside college:
+      if (scopedCollegeId && !studentFilterActive && studentIds.length > 0) {
+        const allowed = new Set(studentIds);
+        // Keep attempts whose student is in college OR we don't know — keep all for exam accuracy
+        // Don't filter: deactivated students should still appear in exam stats
+      }
+    }
+
+    // Ensure students who only appear via attempts are included when viewing a single test
+    if (testId && attempts.length > 0) {
+      const missingIds = [
+        ...new Set(
+          attempts
+            .map((a) => a.studentId)
+            .filter((id) => !studentIds.includes(id))
+        ),
+      ];
+      if (missingIds.length) {
+        const extra = await prisma.user.findMany({
+          where: { id: { in: missingIds } },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            rollNumber: true,
+            year: true,
+            department: { select: { id: true, name: true, code: true } },
+            college: { select: { id: true, name: true, code: true } },
+          },
+        });
+        students.push(...extra);
+      }
+    }
+
+    const allStudents = students;
+    const allStudentIds = allStudents.map((s) => s.id);
+
     const byTest = tests.map((test) => {
       const testAttempts = attempts.filter((a) => a.testId === test.id);
-      // Unique students who completed
       const uniqueStudents = new Set(testAttempts.map((a) => a.studentId));
       const pcts = testAttempts
         .map((a) => a.percentage)
@@ -143,8 +236,7 @@ export async function GET(req: Request) {
       };
     });
 
-    // Student-level
-    const studentReports = students.map((student) => {
+    const studentReports = allStudents.map((student) => {
       const studentAttempts = attempts.filter((a) => a.studentId === student.id);
       const attended = studentAttempts.map((a) => {
         const test = tests.find((t) => t.id === a.testId);
@@ -159,8 +251,7 @@ export async function GET(req: Request) {
           percentage: a.percentage,
           totalMarks: test?.totalMarks,
           status: a.status,
-          passed:
-            a.status !== "VIOLATED" && (a.percentage || 0) >= passMark,
+          passed: a.status !== "VIOLATED" && (a.percentage || 0) >= passMark,
           submittedAt: a.submittedAt,
         };
       });
@@ -191,7 +282,6 @@ export async function GET(req: Request) {
       };
     });
 
-    // Department summary
     const deptMap = new Map<
       string,
       { name: string; students: number; attempts: number; avgSum: number; avgCount: number }
@@ -225,7 +315,6 @@ export async function GET(req: Request) {
         d.avgCount > 0 ? Math.round((d.avgSum / d.avgCount) * 10) / 10 : null,
     }));
 
-    // Year summary
     const yearMap = new Map<
       number | string,
       { students: number; attempts: number; avgSum: number; avgCount: number }
@@ -266,7 +355,7 @@ export async function GET(req: Request) {
         view,
       },
       summary: {
-        totalStudents: students.length,
+        totalStudents: allStudents.length,
         totalTests: tests.length,
         totalAttempts: completedAttempts,
         avgPercentage:
@@ -285,6 +374,7 @@ export async function GET(req: Request) {
       })),
     });
   } catch (e: any) {
+    console.error("reports error", e);
     return error(e.message || "Failed to generate report", 500);
   }
 }
