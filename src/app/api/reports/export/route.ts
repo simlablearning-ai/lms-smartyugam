@@ -42,10 +42,10 @@ export async function GET(req: Request) {
     orderBy: { name: "asc" },
   });
 
-  const testWhere: any = { status: "PUBLISHED" };
+  const testWhere: any = { status: { in: ["PUBLISHED", "ARCHIVED"] } };
   if (scopedCollegeId) testWhere.collegeId = scopedCollegeId;
-  if (departmentId) testWhere.departmentId = departmentId;
   if (testId) testWhere.id = testId;
+  else if (departmentId) testWhere.OR = [{ departmentId }, { departmentId: null }];
 
   const tests = await prisma.test.findMany({
     where: testWhere,
@@ -61,7 +61,7 @@ export async function GET(req: Request) {
     where: {
       studentId: { in: students.map((s) => s.id) },
       testId: { in: tests.map((t) => t.id) },
-      status: { in: ["SUBMITTED", "AUTO_SUBMITTED"] },
+      status: { in: ["SUBMITTED", "AUTO_SUBMITTED", "VIOLATED"] },
     },
     select: {
       studentId: true,
@@ -76,6 +76,7 @@ export async function GET(req: Request) {
   // CSV header
   const headers = [
     "Student Name",
+    "Roll Number",
     "Email",
     "College",
     "Department",

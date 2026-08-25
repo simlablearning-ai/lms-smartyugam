@@ -1,12 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { BarChart3, Users, ClipboardList, TrendingUp, Filter, Download } from "lucide-react";
+import {
+  BarChart3,
+  Users,
+  ClipboardList,
+  TrendingUp,
+  Filter,
+  Download,
+  ExternalLink,
+} from "lucide-react";
 
 type College = { id: string; name: string; code: string };
-type Department = { id: string; name: string; code: string; college?: College };
-type Test = { id: string; title: string };
+type Department = { id: string; name: string; code: string; college?: College; collegeId?: string };
+type Test = { id: string; title: string; status?: string };
 
 export default function ReportsPage() {
   const [colleges, setColleges] = useState<College[]>([]);
@@ -20,7 +29,9 @@ export default function ReportsPage() {
   });
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [view, setView] = useState<"summary" | "department" | "year" | "student">("summary");
+  const [view, setView] = useState<
+    "summary" | "byTest" | "department" | "year" | "student"
+  >("byTest");
 
   useEffect(() => {
     Promise.all([
@@ -30,27 +41,38 @@ export default function ReportsPage() {
       setColleges(Array.isArray(cols) ? cols : []);
       setDepartments(Array.isArray(depts) ? depts : []);
     });
+    // Initial report (all data)
+    void generateReport({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    // Load tests when college/dept changes
     const params = new URLSearchParams();
     if (filters.collegeId) params.set("collegeId", filters.collegeId);
-    // Tests endpoint may not exist yet – handle gracefully
     fetch(`/api/tests?${params}`)
       .then((r) => r.json())
       .then((data) => setTests(Array.isArray(data) ? data : []))
       .catch(() => setTests([]));
-  }, [filters.collegeId, filters.departmentId]);
+  }, [filters.collegeId]);
 
-  async function generateReport() {
+  const filteredDepts = useMemo(() => {
+    if (!filters.collegeId) return departments;
+    return departments.filter(
+      (d) =>
+        d.collegeId === filters.collegeId ||
+        d.college?.id === filters.collegeId
+    );
+  }, [departments, filters.collegeId]);
+
+  async function generateReport(override?: Partial<typeof filters>) {
+    const f = { ...filters, ...override };
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (filters.collegeId) params.set("collegeId", filters.collegeId);
-      if (filters.departmentId) params.set("departmentId", filters.departmentId);
-      if (filters.year) params.set("year", filters.year);
-      if (filters.testId) params.set("testId", filters.testId);
+      if (f.collegeId) params.set("collegeId", f.collegeId);
+      if (f.departmentId) params.set("departmentId", f.departmentId);
+      if (f.year) params.set("year", f.year);
+      if (f.testId) params.set("testId", f.testId);
 
       const res = await fetch(`/api/reports?${params}`);
       const data = await res.json();
@@ -72,21 +94,16 @@ export default function ReportsPage() {
     window.open(`/api/reports/export?${params}`, "_blank");
   }
 
-  const filteredDepts = departments.filter(
-    (d) => !filters.collegeId || (d as any).college?.id === filters.collegeId
-  );
-
   return (
     <DashboardShell role="SUPER_ADMIN">
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
           <p className="text-slate-500 mt-1">
-            Multi-level reports with filters – College → Year → Department → Test
+            Completed exams, filters by college / department / year / student
           </p>
         </div>
 
-        {/* Filters */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Filter className="h-4 w-4 text-indigo-600" />
@@ -98,13 +115,35 @@ export default function ReportsPage() {
               <select
                 value={filters.collegeId}
                 onChange={(e) =>
-                  setFilters({ ...filters, collegeId: e.target.value, departmentId: "", testId: "" })
+                  setFilters({
+                    ...filters,
+                    collegeId: e.target.value,
+                    departmentId: "",
+                    testId: "",
+                  })
                 }
                 className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="">All Colleges</option>
                 {colleges.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Department</label>
+              <select
+                value={filters.departmentId}
+                onChange={(e) => setFilters({ ...filters, departmentId: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">All Departments</option>
+                {filteredDepts.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -123,20 +162,7 @@ export default function ReportsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Department</label>
-              <select
-                value={filters.departmentId}
-                onChange={(e) => setFilters({ ...filters, departmentId: e.target.value, testId: "" })}
-                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">All Departments</option>
-                {filteredDepts.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Test</label>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Test / Exam</label>
               <select
                 value={filters.testId}
                 onChange={(e) => setFilters({ ...filters, testId: e.target.value })}
@@ -144,12 +170,14 @@ export default function ReportsPage() {
               >
                 <option value="">All Tests</option>
                 {tests.map((t) => (
-                  <option key={t.id} value={t.id}>{t.title}</option>
+                  <option key={t.id} value={t.id}>
+                    {t.title}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
-          <div className="mt-4 flex justify-end gap-2">
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
             <button
               onClick={downloadCsv}
               className="inline-flex items-center gap-2 px-5 py-2.5 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50"
@@ -157,7 +185,7 @@ export default function ReportsPage() {
               <Download className="h-4 w-4" /> Download CSV
             </button>
             <button
-              onClick={generateReport}
+              onClick={() => generateReport()}
               disabled={loading}
               className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-medium rounded-lg"
             >
@@ -166,72 +194,150 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* View tabs */}
         {report && (
           <>
             <div className="flex gap-2 flex-wrap">
-              {(["summary", "department", "year", "student"] as const).map((v) => (
+              {(
+                [
+                  ["byTest", "By Exam"],
+                  ["summary", "Summary"],
+                  ["department", "Department"],
+                  ["year", "Year"],
+                  ["student", "Students"],
+                ] as const
+              ).map(([key, label]) => (
                 <button
-                  key={v}
-                  onClick={() => setView(v)}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg capitalize ${
-                    view === v
+                  key={key}
+                  onClick={() => setView(key)}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg ${
+                    view === key
                       ? "bg-indigo-100 text-indigo-700"
                       : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
-                  {v === "student" ? "Individual Students" : v + " Level"}
+                  {label}
                 </button>
               ))}
             </div>
 
-            {/* Summary cards */}
             {view === "summary" && (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white rounded-xl border border-slate-200 p-5">
                   <Users className="h-5 w-5 text-indigo-600 mb-2" />
-                  <p className="text-2xl font-bold text-slate-900">{report.summary.totalStudents}</p>
-                  <p className="text-sm text-slate-500">Students</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {report.summary.totalStudents}
+                  </p>
+                  <p className="text-sm text-slate-500">Students (filtered)</p>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 p-5">
                   <ClipboardList className="h-5 w-5 text-rose-500 mb-2" />
-                  <p className="text-2xl font-bold text-slate-900">{report.summary.totalTests}</p>
-                  <p className="text-sm text-slate-500">Tests</p>
-                </div>
-                <div className="bg-white rounded-xl border border-slate-200 p-5">
-                  <BarChart3 className="h-5 w-5 text-amber-500 mb-2" />
-                  <p className="text-2xl font-bold text-slate-900">{report.summary.totalAttempts}</p>
-                  <p className="text-sm text-slate-500">Attempts</p>
-                </div>
-                <div className="bg-white rounded-xl border border-slate-200 p-5">
-                  <TrendingUp className="h-5 w-5 text-emerald-500 mb-2" />
                   <p className="text-2xl font-bold text-slate-900">
-                    {report.summary.avgAttendance?.toFixed(0) || 0}%
+                    {report.summary.totalTests}
                   </p>
-                  <p className="text-sm text-slate-500">Avg Attendance</p>
+                  <p className="text-sm text-slate-500">Tests in scope</p>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 p-5">
+                  <BarChart3 className="h-5 w-5 text-emerald-600 mb-2" />
+                  <p className="text-2xl font-bold text-slate-900">
+                    {report.summary.totalAttempts}
+                  </p>
+                  <p className="text-sm text-slate-500">Completed attempts</p>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 p-5">
+                  <TrendingUp className="h-5 w-5 text-amber-600 mb-2" />
+                  <p className="text-2xl font-bold text-slate-900">
+                    {report.summary.avgPercentage != null
+                      ? `${report.summary.avgPercentage}%`
+                      : "—"}
+                  </p>
+                  <p className="text-sm text-slate-500">Average score</p>
                 </div>
               </div>
             )}
 
-            {/* Department level */}
+            {view === "byTest" && (
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div className="px-5 py-3 border-b border-slate-100">
+                  <h3 className="font-semibold text-slate-900">Exams & completion</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Includes published and archived tests. Open Results for individual students.
+                  </p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-left">
+                        <th className="px-5 py-3 font-medium text-slate-600">Exam</th>
+                        <th className="px-5 py-3 font-medium text-slate-600">Dept</th>
+                        <th className="px-5 py-3 font-medium text-slate-600">Attempts</th>
+                        <th className="px-5 py-3 font-medium text-slate-600">Students</th>
+                        <th className="px-5 py-3 font-medium text-slate-600">Avg %</th>
+                        <th className="px-5 py-3 font-medium text-slate-600">Pass rate</th>
+                        <th className="px-5 py-3 font-medium text-slate-600"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(report.byTest || []).length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-5 py-10 text-center text-slate-500">
+                            No tests found for these filters.
+                          </td>
+                        </tr>
+                      ) : (
+                        (report.byTest || []).map((row: any) => (
+                          <tr key={row.test.id} className="hover:bg-slate-50">
+                            <td className="px-5 py-3">
+                              <p className="font-medium text-slate-900">{row.test.title}</p>
+                              <p className="text-xs text-slate-400">{row.test.status}</p>
+                            </td>
+                            <td className="px-5 py-3 text-slate-600">
+                              {row.test.department?.name || "All / college-wide"}
+                            </td>
+                            <td className="px-5 py-3 text-slate-700">{row.attemptCount}</td>
+                            <td className="px-5 py-3 text-slate-700">{row.studentCount}</td>
+                            <td className="px-5 py-3 text-slate-700">
+                              {row.avgPercentage != null ? `${row.avgPercentage}%` : "—"}
+                            </td>
+                            <td className="px-5 py-3 text-slate-700">
+                              {row.passRate != null ? `${row.passRate}%` : "—"}
+                            </td>
+                            <td className="px-5 py-3 text-right">
+                              <Link
+                                href={`/super-admin/results/${row.test.id}`}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg"
+                              >
+                                View results <ExternalLink className="h-3 w-3" />
+                              </Link>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {view === "department" && (
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="text-left px-6 py-3 font-medium text-slate-600">Department</th>
-                      <th className="text-left px-6 py-3 font-medium text-slate-600">Students</th>
-                      <th className="text-left px-6 py-3 font-medium text-slate-600">Attempts</th>
-                      <th className="text-left px-6 py-3 font-medium text-slate-600">Avg Score</th>
+                    <tr className="bg-slate-50 border-b text-left">
+                      <th className="px-5 py-3 font-medium text-slate-600">Department</th>
+                      <th className="px-5 py-3 font-medium text-slate-600">Students</th>
+                      <th className="px-5 py-3 font-medium text-slate-600">Attempts</th>
+                      <th className="px-5 py-3 font-medium text-slate-600">Avg score</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {report.departmentSummary?.map((d: any) => (
-                      <tr key={d.departmentId} className="hover:bg-slate-50">
-                        <td className="px-6 py-4 font-medium text-slate-900">{d.name}</td>
-                        <td className="px-6 py-4 text-slate-600">{d.students}</td>
-                        <td className="px-6 py-4 text-slate-600">{d.attempts}</td>
-                        <td className="px-6 py-4 text-slate-600">{d.avgScore?.toFixed(1) || "—"}%</td>
+                  <tbody className="divide-y">
+                    {(report.byDepartment || []).map((d: any) => (
+                      <tr key={d.departmentId}>
+                        <td className="px-5 py-3 font-medium">{d.name}</td>
+                        <td className="px-5 py-3">{d.students}</td>
+                        <td className="px-5 py-3">{d.attempts}</td>
+                        <td className="px-5 py-3">
+                          {d.avgScore != null ? `${d.avgScore}%` : "—"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -239,27 +345,28 @@ export default function ReportsPage() {
               </div>
             )}
 
-            {/* Year level */}
             {view === "year" && (
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="text-left px-6 py-3 font-medium text-slate-600">Year</th>
-                      <th className="text-left px-6 py-3 font-medium text-slate-600">Students</th>
-                      <th className="text-left px-6 py-3 font-medium text-slate-600">Attempts</th>
-                      <th className="text-left px-6 py-3 font-medium text-slate-600">Avg Score</th>
+                    <tr className="bg-slate-50 border-b text-left">
+                      <th className="px-5 py-3 font-medium text-slate-600">Year</th>
+                      <th className="px-5 py-3 font-medium text-slate-600">Students</th>
+                      <th className="px-5 py-3 font-medium text-slate-600">Attempts</th>
+                      <th className="px-5 py-3 font-medium text-slate-600">Avg score</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {report.yearSummary?.map((y: any) => (
-                      <tr key={y.year} className="hover:bg-slate-50">
-                        <td className="px-6 py-4 font-medium text-slate-900">
-                          {y.year ? `${y.year}${y.year === 1 ? "st" : y.year === 2 ? "nd" : y.year === 3 ? "rd" : "th"} Year` : "Not set"}
+                  <tbody className="divide-y">
+                    {(report.byYear || []).map((y: any) => (
+                      <tr key={String(y.year)}>
+                        <td className="px-5 py-3 font-medium">
+                          {y.year === "N/A" ? "Not set" : `Year ${y.year}`}
                         </td>
-                        <td className="px-6 py-4 text-slate-600">{y.students}</td>
-                        <td className="px-6 py-4 text-slate-600">{y.attempts}</td>
-                        <td className="px-6 py-4 text-slate-600">{y.avgScore?.toFixed(1) || "—"}%</td>
+                        <td className="px-5 py-3">{y.students}</td>
+                        <td className="px-5 py-3">{y.attempts}</td>
+                        <td className="px-5 py-3">
+                          {y.avgScore != null ? `${y.avgScore}%` : "—"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -267,60 +374,85 @@ export default function ReportsPage() {
               </div>
             )}
 
-            {/* Individual student */}
             {view === "student" && (
-              <div className="space-y-4">
-                {report.studentReports?.map((sr: any) => (
-                  <div key={sr.student.id} className="bg-white rounded-xl border border-slate-200 p-5">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                      <div>
-                        <h3 className="font-semibold text-slate-900">{sr.student.name}</h3>
-                        <p className="text-xs text-slate-500">
-                          {sr.student.email} · {sr.student.department?.name || "No Dept"} ·{" "}
-                          {sr.student.year ? `Year ${sr.student.year}` : ""}
-                        </p>
-                      </div>
-                      <div className="text-sm text-slate-600">
-                        Attended: <strong>{sr.attendedCount}</strong> / {sr.totalTests} · Avg:{" "}
-                        <strong>{sr.avgPercentage?.toFixed(0) ?? "—"}%</strong>
-                      </div>
-                    </div>
-
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs font-medium text-emerald-700 mb-2">Attended Tests</p>
-                        {sr.attended.length === 0 ? (
-                          <p className="text-xs text-slate-400">None</p>
-                        ) : (
-                          <ul className="space-y-1">
-                            {sr.attended.map((a: any) => (
-                              <li key={a.testId} className="text-sm flex justify-between gap-2">
-                                <span className="text-slate-700 truncate">{a.testTitle}</span>
-                                <span className={`font-medium ${a.passed ? "text-emerald-600" : "text-rose-600"}`}>
-                                  {a.percentage?.toFixed(0)}%
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium text-rose-700 mb-2">Not Attended</p>
-                        {sr.notAttended.length === 0 ? (
-                          <p className="text-xs text-slate-400">None</p>
-                        ) : (
-                          <ul className="space-y-1">
-                            {sr.notAttended.map((t: any) => (
-                              <li key={t.testId} className="text-sm text-slate-500 truncate">
-                                {t.testTitle}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    </div>
+              <div className="space-y-3">
+                {(report.students || []).length === 0 ? (
+                  <div className="bg-white rounded-xl border p-8 text-center text-slate-500">
+                    No students match these filters.
                   </div>
-                ))}
+                ) : (
+                  (report.students || []).map((sr: any) => (
+                    <div
+                      key={sr.student.id}
+                      className="bg-white rounded-xl border border-slate-200 p-4"
+                    >
+                      <div className="flex flex-wrap justify-between gap-2 mb-3">
+                        <div>
+                          <p className="font-semibold text-slate-900">{sr.student.name}</p>
+                          <p className="text-xs text-slate-500">
+                            {sr.student.rollNumber || "—"} · {sr.student.email || "no email"} ·{" "}
+                            {sr.student.department?.name || "No dept"}
+                            {sr.student.year ? ` · Year ${sr.student.year}` : ""}
+                          </p>
+                        </div>
+                        <div className="text-sm text-slate-600">
+                          Attended: <strong>{sr.attendedCount}</strong> / {sr.totalTests} · Avg:{" "}
+                          <strong>{sr.avgPercentage ?? "—"}%</strong>
+                        </div>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs font-medium text-emerald-700 mb-2">
+                            Completed exams
+                          </p>
+                          {sr.attended.length === 0 ? (
+                            <p className="text-xs text-slate-400">None</p>
+                          ) : (
+                            <ul className="space-y-1">
+                              {sr.attended.map((a: any) => (
+                                <li
+                                  key={a.testId + String(a.submittedAt)}
+                                  className="text-sm flex justify-between gap-2"
+                                >
+                                  <span className="text-slate-700 truncate">
+                                    {a.testTitle}
+                                    {a.status === "VIOLATED" ? " (violated)" : ""}
+                                  </span>
+                                  <span
+                                    className={`font-medium shrink-0 ${
+                                      a.passed ? "text-emerald-600" : "text-rose-600"
+                                    }`}
+                                  >
+                                    {a.percentage != null ? `${Math.round(a.percentage)}%` : "—"}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-rose-700 mb-2">Not attended</p>
+                          {sr.notAttended.length === 0 ? (
+                            <p className="text-xs text-slate-400">None</p>
+                          ) : (
+                            <ul className="space-y-1">
+                              {sr.notAttended.slice(0, 12).map((t: any) => (
+                                <li key={t.testId} className="text-sm text-slate-500 truncate">
+                                  {t.testTitle}
+                                </li>
+                              ))}
+                              {sr.notAttended.length > 12 && (
+                                <li className="text-xs text-slate-400">
+                                  +{sr.notAttended.length - 12} more
+                                </li>
+                              )}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
           </>
@@ -328,8 +460,11 @@ export default function ReportsPage() {
 
         {!report && !loading && (
           <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center text-slate-500">
-            Select filters and click <strong>Generate Report</strong> to view results.
+            Select filters and click <strong>Generate Report</strong>.
           </div>
+        )}
+        {loading && (
+          <div className="text-center text-slate-500 text-sm py-8">Loading report…</div>
         )}
       </div>
     </DashboardShell>

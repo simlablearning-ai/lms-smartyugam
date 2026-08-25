@@ -14,9 +14,18 @@ export default function CollegeReportsPage() {
   });
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [view, setView] = useState<"summary" | "department" | "year" | "student">("summary");
+  const [view, setView] = useState<"summary" | "byTest" | "department" | "year" | "student">("byTest");
 
   useEffect(() => {
+    void (async () => {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/reports");
+        const data = await res.json();
+        if (res.ok) setReport(data);
+      } catch {}
+      setLoading(false);
+    })();
     fetch("/api/departments")
       .then((r) => r.json())
       .then((d) => setDepartments(Array.isArray(d) ? d : []));
@@ -102,17 +111,49 @@ export default function CollegeReportsPage() {
         {report && (
           <>
             <div className="flex gap-2 flex-wrap">
-              {(["summary", "department", "year", "student"] as const).map((v) => (
+              {(["byTest", "summary", "department", "year", "student"] as const).map((v) => (
                 <button key={v} onClick={() => setView(v)}
                   className={`px-4 py-2 text-sm font-medium rounded-lg capitalize ${
                     view === v ? "bg-indigo-100 text-indigo-700" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}>
-                  {v === "student" ? "Individual Students" : v + " Level"}
+                  {v === "student" ? "Students" : v === "byTest" ? "By Exam" : v + " Level"}
                 </button>
               ))}
             </div>
 
-            {view === "summary" && (
+            
+            {view === "byTest" && (
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b text-left">
+                      <th className="px-5 py-3 font-medium text-slate-600">Exam</th>
+                      <th className="px-5 py-3 font-medium text-slate-600">Attempts</th>
+                      <th className="px-5 py-3 font-medium text-slate-600">Students</th>
+                      <th className="px-5 py-3 font-medium text-slate-600">Avg %</th>
+                      <th className="px-5 py-3 font-medium text-slate-600">Pass rate</th>
+                      <th className="px-5 py-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {(report.byTest || []).map((row: any) => (
+                      <tr key={row.test.id}>
+                        <td className="px-5 py-3 font-medium">{row.test.title}</td>
+                        <td className="px-5 py-3">{row.attemptCount}</td>
+                        <td className="px-5 py-3">{row.studentCount}</td>
+                        <td className="px-5 py-3">{row.avgPercentage != null ? `${row.avgPercentage}%` : "—"}</td>
+                        <td className="px-5 py-3">{row.passRate != null ? `${row.passRate}%` : "—"}</td>
+                        <td className="px-5 py-3 text-right">
+                          <a href={`/college-admin/results/${row.test.id}`} className="text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-1 rounded-lg">Results</a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+{view === "summary" && (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white rounded-xl border border-slate-200 p-5">
                   <Users className="h-5 w-5 text-indigo-600 mb-2" />
