@@ -169,7 +169,19 @@ const matchSearch =
     return matchSearch && matchStatus;
   });
 
-  return (
+  const {
+    page,
+    setPage,
+    viewAll,
+    setViewAll,
+    pageItems,
+    total,
+    totalPages,
+    from,
+    to,
+  } = useListPagination(filtered, 20);
+
+return (
     <DashboardShell role="SUPER_ADMIN">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -463,18 +475,4 @@ const matchSearch =
       </Modal>
     </DashboardShell>
   );
-
-  const {
-    page,
-    setPage,
-    viewAll,
-    setViewAll,
-    pageItems,
-    total,
-    totalPages,
-    from,
-    to,
-  } = useListPagination(filtered, 20);
-
-
 }

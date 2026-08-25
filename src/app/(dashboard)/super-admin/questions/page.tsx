@@ -259,7 +259,6 @@ export default function QuestionsPage() {
     to,
   } = useListPagination(filtered, 20);
 
-
 return (
     <DashboardShell role="SUPER_ADMIN">
       <div className="space-y-6">

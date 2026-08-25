@@ -202,7 +202,6 @@ export default function CollegeTestsPage() {
     to,
   } = useListPagination(filtered, 20);
 
-
 return (
     <DashboardShell role="COLLEGE_ADMIN">
       <div className="space-y-6">

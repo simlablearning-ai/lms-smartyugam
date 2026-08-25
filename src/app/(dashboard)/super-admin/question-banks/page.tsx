@@ -122,7 +122,6 @@ export default function QuestionBanksPage() {
     to,
   } = useListPagination(filtered, 20);
 
-
 return (
     <DashboardShell role="SUPER_ADMIN">
       <div className="space-y-6">

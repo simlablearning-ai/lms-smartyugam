@@ -99,13 +99,25 @@ export default function DepartmentsPage() {
   }
 
   const filtered = departments.filter((d) => {
-const matchSearch =
+    const matchSearch =
       !search ||
       d.name.toLowerCase().includes(search.toLowerCase()) ||
       d.code.toLowerCase().includes(search.toLowerCase());
     const matchCollege = !collegeFilter || d.college.id === collegeFilter;
     return matchSearch && matchCollege;
   });
+
+  const {
+    page,
+    setPage,
+    viewAll,
+    setViewAll,
+    pageItems,
+    total,
+    totalPages,
+    from,
+    to,
+  } = useListPagination(filtered, 20);
 
   return (
     <DashboardShell role="SUPER_ADMIN">
@@ -250,18 +262,4 @@ const matchSearch =
       </Modal>
     </DashboardShell>
   );
-
-  const {
-    page,
-    setPage,
-    viewAll,
-    setViewAll,
-    pageItems,
-    total,
-    totalPages,
-    from,
-    to,
-  } = useListPagination(filtered, 20);
-
-
 }
