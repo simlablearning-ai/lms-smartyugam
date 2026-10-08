@@ -22,6 +22,8 @@ export async function PUT(
       marks,
       departmentId,
       isActive,
+      imageUrl,
+      optionImages,
     } = body;
 
     const existing = await prisma.question.findUnique({ where: { id } });
@@ -48,7 +50,16 @@ export async function PUT(
         ...(marks !== undefined && { marks: parseInt(marks) }),
         ...(departmentId !== undefined && { departmentId: departmentId || null }),
         ...(isActive !== undefined && { isActive }),
-      },
+        ...(imageUrl !== undefined && { imageUrl: imageUrl || null }),
+        ...(optionImages !== undefined && {
+          optionImages:
+            optionImages == null
+              ? null
+              : typeof optionImages === "string"
+                ? optionImages
+                : JSON.stringify(optionImages),
+        }),
+      } as any,
     });
 
     return json(question);
