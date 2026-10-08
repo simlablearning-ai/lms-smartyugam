@@ -52,6 +52,8 @@ export async function POST(req: Request) {
       collegeId,
       departmentId,
       questionBankId,
+      imageUrl,
+      optionImages,
     } = body;
 
     if (!text || !correctAnswer) {
@@ -74,8 +76,14 @@ export async function POST(req: Request) {
         collegeId: collegeId || null,
         departmentId: departmentId || null,
         questionBankId: questionBankId || null,
+        imageUrl: imageUrl || null,
+        optionImages: optionImages
+          ? typeof optionImages === "string"
+            ? optionImages
+            : JSON.stringify(optionImages)
+          : null,
         createdById: (await resolveCreatorId(auth.session))!,
-      },
+      } as any,
     });
 
     return json(question, 201);
