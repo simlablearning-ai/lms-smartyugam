@@ -61,14 +61,14 @@ enum JobStatus {
 
 model User {
   id            String    @id @default(cuid())
-  email         String?   @unique  // optional for students; required for admins in app logic
+  email         String?   @unique
   password      String
   name          String
   role          Role      @default(STUDENT)
-  rollNumber    String?   @unique  // mandatory for students; used as login username
+  rollNumber    String?   @unique
   collegeId     String?
   departmentId  String?
-  year          Int?      // studying year e.g. 1,2,3,4
+  year          Int?
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -223,7 +223,7 @@ model QuestionBank {
   id          String   @id @default(cuid())
   name        String
   description String?
-  collegeId   String?  // null = global / reusable across colleges
+  collegeId   String?
   createdById String
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -240,11 +240,13 @@ model Question {
   id            String       @id @default(cuid())
   text          String
   type          QuestionType @default(MCQ)
-  options       String?      // JSON string for MCQ options
+  options       String?
   correctAnswer String
   explanation   String?
-  difficulty    Int          @default(1) // 1-5
+  difficulty    Int          @default(1)
   marks         Int          @default(1)
+  imageUrl      String?
+  optionImages  String?
   collegeId     String?
   departmentId  String?
   questionBankId String?
@@ -322,7 +324,7 @@ model TestAttempt {
   score         Float?
   percentage    Float?
   status        AttemptStatus @default(IN_PROGRESS)
-  violations    String?       // JSON array of violation events
+  violations    String?
   timeSpentSec  Int?
   ipAddress     String?
   userAgent     String?
@@ -334,7 +336,7 @@ model TestAttempt {
 
   @@index([testId])
   @@index([studentId])
-  @@unique([testId, studentId, startedAt]) // allow multiple attempts if configured
+  @@unique([testId, studentId, startedAt])
 }
 
 model Answer {
@@ -356,7 +358,7 @@ model Enrollment {
   studentId   String
   courseId    String
   enrolledAt  DateTime @default(now())
-  progress    Float    @default(0) // 0-100
+  progress    Float    @default(0)
   completedAt DateTime?
 
   student     User     @relation(fields: [studentId], references: [id])
@@ -394,9 +396,9 @@ model PlacementProfile {
   githubUrl     String?
   portfolioUrl  String?
   resumeUrl     String?
-  skills        String?  // comma or JSON list
-  education     String?  // JSON array
-  experience    String?  // JSON array
+  skills        String?
+  education     String?
+  experience    String?
   cgpa          Float?
   backlogs      Int      @default(0)
   isComplete    Boolean  @default(false)
@@ -411,16 +413,16 @@ model JobPosting {
   title           String
   companyName     String
   location        String?
-  jobType         String?   // Full-time, Internship, etc.
+  jobType         String?
   description     String?
   requirements    String?
-  skillsRequired  String?   // comma-separated
+  skillsRequired  String?
   packageLpa      Float?
   minCgpa         Float?
   maxBacklogs     Int?
-  eligibleYears   String?   // e.g. "3,4"
-  eligibleDepts   String?   // department codes or names
-  collegeId       String?   // null = all colleges
+  eligibleYears   String?
+  eligibleDepts   String?
+  collegeId       String?
   status          JobStatus @default(OPEN)
   applicationDeadline DateTime?
   interviewNotes  String?
@@ -441,14 +443,13 @@ model JobApplication {
   jobId         String
   studentId     String
   status        ApplicationStatus @default(APPLIED)
-  score         Float?            // ranking score
+  score         Float?
   adminNotes    String?
   interviewRound String?
   interviewAt   DateTime?
   interviewInfo String?
-  // Per-application profile override (does not change PlacementProfile)
   appSkills     String?
-  appResume     String?           // URL or data URL from upload
+  appResume     String?
   appHeadline   String?
   coverLetter   String?
   resumeFileName String?
@@ -484,10 +485,10 @@ model Notification {
   userId    String
   title     String
   body      String
-  type      String   // TEST, JOB, APPLICATION, ACCOUNT, SYSTEM
+  type      String
   link      String?
   read      Boolean  @default(false)
-  meta      String?  // JSON
+  meta      String?
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
