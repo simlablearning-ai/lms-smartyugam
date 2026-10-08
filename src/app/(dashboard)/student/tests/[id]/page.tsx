@@ -16,6 +16,8 @@ type Question = {
     type: string;
     options: string | null;
     marks: number;
+    imageUrl?: string | null;
+    optionImages?: string | null;
   };
 };
 
@@ -38,7 +40,6 @@ export default function TakeTestPage({
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
 
-  // Load test
   useEffect(() => {
     fetch(`/api/tests/${testId}`)
       .then((r) => r.json())
@@ -53,7 +54,6 @@ export default function TakeTestPage({
       .finally(() => setLoading(false));
   }, [testId]);
 
-  // Timer
   useEffect(() => {
     if (!started || timeLeft <= 0 || result) return;
     const t = setInterval(() => {
@@ -145,6 +145,16 @@ export default function TakeTestPage({
     }
   }
 
+  function parseOptionImages(raw: string | null | undefined): (string | null)[] {
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -170,7 +180,6 @@ export default function TakeTestPage({
     );
   }
 
-  // Result screen
   if (result) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
@@ -204,7 +213,6 @@ export default function TakeTestPage({
     );
   }
 
-  // Pre-start screen
   if (!started) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
@@ -269,10 +277,8 @@ export default function TakeTestPage({
     );
   }
 
-  // Test taking UI
   const content = (
     <div className="min-h-screen bg-slate-50">
-      {/* Top bar */}
       <div className="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
         <div>
           <p className="font-semibold text-slate-900 text-sm">{test?.title}</p>
@@ -305,7 +311,6 @@ export default function TakeTestPage({
         </div>
       </div>
 
-      {/* Questions */}
       <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
         {(!test?.questions || test.questions.length === 0) && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center">
@@ -319,15 +324,26 @@ export default function TakeTestPage({
 
         {test?.questions?.map((tq: Question, idx: number) => {
           const opts = parseOptions(tq.question.options);
+          const optImages = parseOptionImages(tq.question.optionImages);
           return (
             <div key={tq.question.id} className="bg-white rounded-xl border border-slate-200 p-5">
               <div className="flex items-start gap-3 mb-4">
                 <span className="flex-shrink-0 h-7 w-7 rounded-full bg-indigo-100 text-indigo-700 text-sm font-semibold flex items-center justify-center">
                   {idx + 1}
                 </span>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-slate-900 font-medium">{tq.question.text}</p>
                   <p className="text-xs text-slate-400 mt-1">{tq.marks} mark(s) · {tq.question.type}</p>
+                  {tq.question.imageUrl && (
+                    <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2 inline-block max-w-full">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={tq.question.imageUrl}
+                        alt="Question figure"
+                        className="max-h-72 max-w-full object-contain rounded"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -364,7 +380,15 @@ export default function TakeTestPage({
                         }
                         className="accent-indigo-600"
                       />
-                      <span className="text-sm text-slate-700">{opt}</span>
+                      <span className="text-sm text-slate-700 flex-1">{opt}</span>
+                      {optImages[oi] && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={optImages[oi]!}
+                          alt={`Option ${oi + 1}`}
+                          className="h-14 w-auto object-contain rounded border border-slate-200"
+                        />
+                      )}
                     </label>
                   ))}
                 </div>

@@ -29,7 +29,7 @@ export async function GET(
 
   if (!test) return error("Test not found", 404);
 
-  // For students, hide correct answers
+  // For students, hide correct answers but keep images for diagram questions
   if (auth.session!.user.role === Role.STUDENT) {
     const safe = {
       ...test,
@@ -43,6 +43,8 @@ export async function GET(
           type: tq.question.type,
           options: tq.question.options,
           marks: tq.question.marks,
+          imageUrl: (tq.question as any).imageUrl || null,
+          optionImages: (tq.question as any).optionImages || null,
         },
       })),
     };
@@ -89,7 +91,6 @@ export async function PUT(
       return error("Forbidden", 403);
     }
 
-    // Replace linked questions if question bank or questionIds provided
     if (questionBankId) {
       const bankQuestions = await prisma.question.findMany({
         where: { questionBankId, isActive: true },
@@ -171,13 +172,11 @@ export async function DELETE(
       return error("Forbidden", 403);
     }
 
-    // Permanent delete: clear dependents first (attempts may not cascade)
     await prisma.answer.deleteMany({
       where: { attempt: { testId: id } },
     });
     await prisma.testAttempt.deleteMany({ where: { testId: id } });
     await prisma.testQuestion.deleteMany({ where: { testId: id } });
-    // Unlink module assessments pointing at this test
     await prisma.courseModule.updateMany({
       where: { assessmentTestId: id },
       data: { assessmentTestId: null },
