@@ -21,6 +21,7 @@ import {
   FolderOpen,
   CalendarDays,
   Settings,
+  Code2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -40,6 +41,7 @@ const superAdminNav: NavItem[] = [
   { label: "Question Banks", href: "/super-admin/question-banks", icon: FolderOpen },
   { label: "Questions", href: "/super-admin/questions", icon: FileQuestion },
   { label: "Tests", href: "/super-admin/tests", icon: ClipboardList },
+  { label: "TechAbility", href: "/super-admin/tech-ability", icon: Code2 },
   { label: "Results", href: "/super-admin/results", icon: BarChart3 },
   { label: "Placement", href: "/super-admin/placement", icon: Briefcase },
   { label: "Reports", href: "/super-admin/reports", icon: BarChart3 },
@@ -53,6 +55,7 @@ const collegeAdminNav: NavItem[] = [
   { label: "Courses", href: "/college-admin/courses", icon: BookOpen },
   { label: "Question Bank", href: "/college-admin/questions", icon: FileQuestion },
   { label: "Tests", href: "/college-admin/tests", icon: ClipboardList },
+  { label: "TechAbility", href: "/college-admin/tech-ability", icon: Code2 },
   { label: "Results", href: "/college-admin/results", icon: BarChart3 },
   { label: "Placement", href: "/college-admin/placement", icon: Briefcase },
   { label: "Reports", href: "/college-admin/reports", icon: BarChart3 },
@@ -63,6 +66,7 @@ const studentNav: NavItem[] = [
   { label: "Dashboard", href: "/student", icon: LayoutDashboard },
   { label: "My Courses", href: "/student/courses", icon: BookOpen },
   { label: "Assessments", href: "/student/tests", icon: ClipboardList },
+  { label: "TechAbility", href: "/student/tech-ability", icon: Code2 },
   { label: "Certificates", href: "/student/certificates", icon: Award },
   { label: "Learning Path", href: "/student/learning-path", icon: BarChart3 },
   { label: "Placement", href: "/student/placement", icon: Briefcase },
