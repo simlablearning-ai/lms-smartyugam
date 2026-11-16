@@ -50,7 +50,6 @@ export default function SuperAdminTechAbilityPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  // Test modal
   const [testModal, setTestModal] = useState(false);
   const [editingTest, setEditingTest] = useState<TechTest | null>(null);
   const [testForm, setTestForm] = useState({
@@ -71,7 +70,6 @@ export default function SuperAdminTechAbilityPage() {
   const [testSaving, setTestSaving] = useState(false);
   const [testError, setTestError] = useState("");
 
-  // Problem modal
   const [probModal, setProbModal] = useState(false);
   const [editingProb, setEditingProb] = useState<TechProblem | null>(null);
   const [probForm, setProbForm] = useState({
@@ -90,15 +88,6 @@ export default function SuperAdminTechAbilityPage() {
   async function load() {
     setLoading(true);
     try {
-      const [tRes, pRes, cRes, dRes] = await Promise.all([
-        fetch("/api/tech-ability/tests"),
-        fetch("/api/tech-ability/problems"),
-        fetch("/api/colleges"),
-        fetch("/api/departments"),
-      ]);
-      setTests(Array.isArray(await tRes.json()) ? await tRes.clone().json().then((x) => (Array.isArray(x) ? x : [])) : []);
-      const tData = await tRes.json().catch(() => []);
-      // re-fetch cleanly
       const [testsData, problemsData, collegesData, deptsData] = await Promise.all([
         fetch("/api/tech-ability/tests").then((r) => r.json()),
         fetch("/api/tech-ability/problems").then((r) => r.json()),
@@ -572,7 +561,6 @@ export default function SuperAdminTechAbilityPage() {
         )}
       </div>
 
-      {/* Create / Edit Tech Test */}
       <Modal
         open={testModal}
         onClose={() => setTestModal(false)}
@@ -757,7 +745,6 @@ export default function SuperAdminTechAbilityPage() {
         </form>
       </Modal>
 
-      {/* Create / Edit Problem */}
       <Modal
         open={probModal}
         onClose={() => setProbModal(false)}
@@ -842,7 +829,6 @@ export default function SuperAdminTechAbilityPage() {
               onChange={(e) => setProbForm({ ...probForm, testCasesText: e.target.value })}
               rows={6}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono bg-slate-50"
-              placeholder='[{{"input":"1\\n","expectedOutput":"2\\n","isHidden":false}}]'
             />
             <p className="text-xs text-slate-400 mt-1">
               Each case: input, expectedOutput, isHidden (optional). Hidden cases scored but not shown live.
