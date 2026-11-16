@@ -59,6 +59,14 @@ enum JobStatus {
   CLOSED
 }
 
+enum TechLanguage {
+  PYTHON
+  JAVA
+  JAVASCRIPT
+  CPP
+  C
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String?   @unique
@@ -92,6 +100,10 @@ model User {
   pushSubscriptions  PushSubscription[]
   passwordResets     PasswordResetToken[]
 
+  createdTechProblems TechProblem[]  @relation("TechProblemCreator")
+  createdTechTests    TechTest[]     @relation("TechTestCreator")
+  techAttempts        TechAttempt[]
+
   @@index([collegeId])
   @@index([role])
   @@index([rollNumber])
@@ -117,6 +129,9 @@ model College {
   tests       Test[]
   certificates Certificate[]
   jobPostings  JobPosting[]
+
+  techProblems TechProblem[]
+  techTests    TechTest[]
 }
 
 model Department {
@@ -133,6 +148,8 @@ model Department {
   courses     Course[]
   questions   Question[]
   tests       Test[]
+
+  techTests   TechTest[]
 
   @@unique([collegeId, code])
   @@index([collegeId])
@@ -521,4 +538,113 @@ model PushSubscription {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// TechAbility — coding tests (separate from MCQ)
+// ─────────────────────────────────────────────
+
+model TechProblem {
+  id           String       @id @default(cuid())
+  title        String
+  description  String
+  language     TechLanguage @default(PYTHON)
+  starterCode  String?
+  solutionCode String?
+  /// JSON: [{ input, expectedOutput, isHidden? }]
+  testCases    String       @default("[]")
+  marks        Int          @default(10)
+  difficulty   Int          @default(1)
+  collegeId    String?
+  createdById  String
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  college      College?     @relation(fields: [collegeId], references: [id])
+  createdBy    User         @relation("TechProblemCreator", fields: [createdById], references: [id])
+  testProblems TechTestProblem[]
+  submissions  TechSubmission[]
+
+  @@index([collegeId])
+  @@index([language])
+}
+
+model TechTest {
+  id              String     @id @default(cuid())
+  title           String
+  description     String?
+  collegeId       String
+  departmentId    String?
+  durationMinutes Int        @default(60)
+  totalMarks      Int        @default(100)
+  passingMarks    Int        @default(40)
+  isProctored     Boolean    @default(true)
+  status          TestStatus @default(DRAFT)
+  startTime       DateTime?
+  endTime         DateTime?
+  maxAttempts     Int        @default(1)
+  createdById     String
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  college         College    @relation(fields: [collegeId], references: [id])
+  department      Department? @relation(fields: [departmentId], references: [id])
+  createdBy       User       @relation("TechTestCreator", fields: [createdById], references: [id])
+  problems        TechTestProblem[]
+  attempts        TechAttempt[]
+
+  @@index([collegeId])
+  @@index([departmentId])
+  @@index([status])
+}
+
+model TechTestProblem {
+  id        String @id @default(cuid())
+  testId    String
+  problemId String
+  marks     Int    @default(10)
+  order     Int    @default(0)
+
+  test      TechTest    @relation(fields: [testId], references: [id], onDelete: Cascade)
+  problem   TechProblem @relation(fields: [problemId], references: [id])
+
+  @@unique([testId, problemId])
+}
+
+model TechAttempt {
+  id           String        @id @default(cuid())
+  testId       String
+  studentId    String
+  startedAt    DateTime      @default(now())
+  submittedAt  DateTime?
+  score        Float?
+  percentage   Float?
+  status       AttemptStatus @default(IN_PROGRESS)
+  violations   String?
+  timeSpentSec Int?
+
+  test         TechTest      @relation(fields: [testId], references: [id])
+  student      User          @relation(fields: [studentId], references: [id])
+  submissions  TechSubmission[]
+
+  @@index([testId])
+  @@index([studentId])
+}
+
+model TechSubmission {
+  id          String       @id @default(cuid())
+  attemptId   String
+  problemId   String
+  code        String
+  language    TechLanguage
+  score       Float        @default(0)
+  maxScore    Float        @default(0)
+  results     String?
+  submittedAt DateTime     @default(now())
+
+  attempt     TechAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  problem     TechProblem  @relation(fields: [problemId], references: [id])
+
+  @@unique([attemptId, problemId])
 }
