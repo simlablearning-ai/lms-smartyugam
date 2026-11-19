@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Modal } from "@/components/ui/Modal";
 import { useListPagination, ListPaginationBar } from "@/components/ui/ListPagination";
-import { Code2, Plus, Pencil, Trash2, Search, Shield, Play } from "lucide-react";
+import { Code2, Plus, Pencil, Trash2, Search, Shield } from "lucide-react";
 import { istLocalInputToUtc, utcToIstLocalInput, formatIst, checkTestLive } from "@/lib/test-live";
 
 type TechProblem = {
@@ -49,6 +49,7 @@ export default function SuperAdminTechAbilityPage() {
   const [departments, setDepartments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [schemaHint, setSchemaHint] = useState("");
 
   const [testModal, setTestModal] = useState(false);
   const [editingTest, setEditingTest] = useState<TechTest | null>(null);
@@ -87,17 +88,43 @@ export default function SuperAdminTechAbilityPage() {
 
   async function load() {
     setLoading(true);
+    setSchemaHint("");
     try {
-      const [testsData, problemsData, collegesData, deptsData] = await Promise.all([
-        fetch("/api/tech-ability/tests").then((r) => r.json()),
-        fetch("/api/tech-ability/problems").then((r) => r.json()),
-        fetch("/api/colleges").then((r) => r.json()),
-        fetch("/api/departments").then((r) => r.json()),
+      // Load independently so colleges still appear even if Tech tables are not pushed yet
+      const [testsRes, problemsRes, collegesRes, deptsRes] = await Promise.all([
+        fetch("/api/tech-ability/tests"),
+        fetch("/api/tech-ability/problems"),
+        fetch("/api/colleges"),
+        fetch("/api/departments"),
       ]);
+
+      const testsData = await testsRes.json().catch(() => null);
+      const problemsData = await problemsRes.json().catch(() => null);
+      const collegesData = await collegesRes.json().catch(() => null);
+      const deptsData = await deptsRes.json().catch(() => null);
+
       setTests(Array.isArray(testsData) ? testsData : []);
       setProblems(Array.isArray(problemsData) ? problemsData : []);
       setColleges(Array.isArray(collegesData) ? collegesData : []);
       setDepartments(Array.isArray(deptsData) ? deptsData : []);
+
+      if (!testsRes.ok || !problemsRes.ok) {
+        const errMsg =
+          (testsData && testsData.error) ||
+          (problemsData && problemsData.error) ||
+          "TechAbility tables missing";
+        if (
+          String(errMsg).toLowerCase().includes("does not exist") ||
+          String(errMsg).toLowerCase().includes("unknown") ||
+          String(errMsg).toLowerCase().includes("tech") ||
+          testsRes.status === 500 ||
+          problemsRes.status === 500
+        ) {
+          setSchemaHint(
+            "TechAbility database tables are not created yet. Run: npx prisma db push  (same Neon DB — only adds new tables, does not wipe data)."
+          );
+        }
+      }
     } catch {
       setTests([]);
       setProblems([]);
@@ -156,6 +183,11 @@ export default function SuperAdminTechAbilityPage() {
     e.preventDefault();
     setTestSaving(true);
     setTestError("");
+    if (!editingTest && !testForm.collegeId) {
+      setTestError("Select a college");
+      setTestSaving(false);
+      return;
+    }
     if (!editingTest && !testForm.problemIds.length) {
       setTestError("Select at least one coding problem");
       setTestSaving(false);
@@ -349,11 +381,16 @@ export default function SuperAdminTechAbilityPage() {
           </div>
         </div>
 
+        {schemaHint && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {schemaHint}
+          </div>
+        )}
+
         <div className="flex gap-2 border-b border-slate-200">
           <button
             onClick={() => setTab("tests")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-              tab === "tests"
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${\n              tab === "tests"
                 ? "border-indigo-600 text-indigo-600"
                 : "border-transparent text-slate-500 hover:text-slate-700"
             }`}
@@ -362,8 +399,7 @@ export default function SuperAdminTechAbilityPage() {
           </button>
           <button
             onClick={() => setTab("problems")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-              tab === "problems"
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${\n              tab === "problems"
                 ? "border-indigo-600 text-indigo-600"
                 : "border-transparent text-slate-500 hover:text-slate-700"
             }`}
@@ -442,19 +478,16 @@ export default function SuperAdminTechAbilityPage() {
                             <button
                               type="button"
                               onClick={() => toggleTestLive(t.id, t.status)}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                t.status === "PUBLISHED" ? "bg-emerald-500" : "bg-slate-300"
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${\n                                t.status === "PUBLISHED" ? "bg-emerald-500" : "bg-slate-300"
                               }`}
                             >
                               <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
-                                  t.status === "PUBLISHED" ? "translate-x-6" : "translate-x-1"
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${\n                                  t.status === "PUBLISHED" ? "translate-x-6" : "translate-x-1"
                                 }`}
                               />
                             </button>
                             <p
-                              className={`text-[10px] mt-1 font-medium ${
-                                liveInfo.live ? "text-emerald-600" : "text-slate-400"
+                              className={`text-[10px] mt-1 font-medium ${\n                                liveInfo.live ? "text-emerald-600" : "text-slate-400"
                               }`}
                             >
                               {liveInfo.live ? "Live now" : t.status === "PUBLISHED" ? "Scheduled" : "Off"}
@@ -526,14 +559,7 @@ export default function SuperAdminTechAbilityPage() {
                   ) : (
                     probPag.pageItems.map((p) => (
                       <tr key={p.id} className="hover:bg-slate-50">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="h-9 w-9 rounded-lg bg-violet-50 flex items-center justify-center">
-                              <Play className="h-4 w-4 text-violet-600" />
-                            </div>
-                            <p className="font-medium text-slate-900">{p.title}</p>
-                          </div>
-                        </td>
+                        <td className="px-6 py-4 font-medium text-slate-900">{p.title}</td>
                         <td className="px-6 py-4 text-slate-600">{p.language}</td>
                         <td className="px-6 py-4 text-slate-600">{p.marks}</td>
                         <td className="px-6 py-4 text-slate-600">{p.difficulty}</td>
@@ -559,124 +585,169 @@ export default function SuperAdminTechAbilityPage() {
             </div>
           </div>
         )}
-      </div>
 
-      <Modal
-        open={testModal}
-        onClose={() => setTestModal(false)}
-        title={editingTest ? "Edit Tech Test" : "Create Tech Test"}
-      >
-        <form onSubmit={saveTest} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-          {testError && (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-              {testError}
-            </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
-            <input
-              required
-              value={testForm.title}
-              onChange={(e) => setTestForm({ ...testForm, title: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-            <textarea
-              value={testForm.description}
-              onChange={(e) => setTestForm({ ...testForm, description: e.target.value })}
-              rows={2}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-            />
-          </div>
-          {!editingTest && (
+        {/* Create / Edit Tech Test modal */}
+        <Modal
+          open={testModal}
+          onClose={() => setTestModal(false)}
+          title={editingTest ? "Edit Tech Test" : "Create Tech Test"}
+        >
+          <form onSubmit={saveTest} className="space-y-4">
+            {testError && (
+              <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                {testError}
+              </div>
+            )}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">College</label>
-              <select
+              <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
+              <input
                 required
-                value={testForm.collegeId}
-                onChange={(e) =>
-                  setTestForm({ ...testForm, collegeId: e.target.value, departmentId: "" })
-                }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                value={testForm.title}
+                onChange={(e) => setTestForm({ ...testForm, title: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+              <textarea
+                value={testForm.description}
+                onChange={(e) => setTestForm({ ...testForm, description: e.target.value })}
+                rows={2}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+              />
+            </div>
+            {!editingTest && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">College *</label>
+                <select
+                  required
+                  value={testForm.collegeId}
+                  onChange={(e) =>
+                    setTestForm({ ...testForm, collegeId: e.target.value, departmentId: "" })
+                  }
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                >
+                  <option value="">Select college</option>
+                  {colleges.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                {colleges.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    No colleges loaded. Create a college under Colleges first, or refresh this page.
+                  </p>
+                )}
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Department (optional)</label>
+              <select
+                value={testForm.departmentId}
+                onChange={(e) => setTestForm({ ...testForm, departmentId: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
               >
-                <option value="">Select college</option>
-                {colleges.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
+                <option value="">All departments (college-wide)</option>
+                {deptsForCollege.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
                   </option>
                 ))}
               </select>
             </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Department (optional — blank = all depts)
-            </label>
-            <select
-              value={testForm.departmentId}
-              onChange={(e) => setTestForm({ ...testForm, departmentId: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-            >
-              <option value="">All departments</option>
-              {deptsForCollege.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Duration (min)</label>
-              <input
-                type="number"
-                value={testForm.durationMinutes}
-                onChange={(e) => setTestForm({ ...testForm, durationMinutes: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-              />
+            {!editingTest && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Coding problems *
+                </label>
+                <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-1">
+                  {problems.length === 0 ? (
+                    <p className="text-xs text-slate-500 p-2">
+                      No problems yet. Switch to Problems tab and create one first.
+                    </p>
+                  ) : (
+                    problems.map((p) => (
+                      <label key={p.id} className="flex items-center gap-2 text-sm px-2 py-1 hover:bg-slate-50 rounded">
+                        <input
+                          type="checkbox"
+                          checked={testForm.problemIds.includes(p.id)}
+                          onChange={(e) => {
+                            setTestForm((f) => ({
+                              ...f,
+                              problemIds: e.target.checked
+                                ? [...f.problemIds, p.id]
+                                : f.problemIds.filter((id) => id !== p.id),
+                            }));
+                          }}
+                        />
+                        <span>
+                          {p.title} ({p.language}, {p.marks} marks)
+                        </span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Duration (min)</label>
+                <input
+                  type="number"
+                  value={testForm.durationMinutes}
+                  onChange={(e) => setTestForm({ ...testForm, durationMinutes: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Max attempts</label>
+                <input
+                  type="number"
+                  value={testForm.maxAttempts}
+                  onChange={(e) => setTestForm({ ...testForm, maxAttempts: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Total marks</label>
+                <input
+                  type="number"
+                  value={testForm.totalMarks}
+                  onChange={(e) => setTestForm({ ...testForm, totalMarks: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Passing marks</label>
+                <input
+                  type="number"
+                  value={testForm.passingMarks}
+                  onChange={(e) => setTestForm({ ...testForm, passingMarks: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Total marks</label>
-              <input
-                type="number"
-                value={testForm.totalMarks}
-                onChange={(e) => setTestForm({ ...testForm, totalMarks: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Opens (IST)</label>
+                <input
+                  type="datetime-local"
+                  value={testForm.startTime}
+                  onChange={(e) => setTestForm({ ...testForm, startTime: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Closes (IST)</label>
+                <input
+                  type="datetime-local"
+                  value={testForm.endTime}
+                  onChange={(e) => setTestForm({ ...testForm, endTime: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Passing</label>
-              <input
-                type="number"
-                value={testForm.passingMarks}
-                onChange={(e) => setTestForm({ ...testForm, passingMarks: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Start (IST)</label>
-              <input
-                type="datetime-local"
-                value={testForm.startTime}
-                onChange={(e) => setTestForm({ ...testForm, startTime: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">End (IST)</label>
-              <input
-                type="datetime-local"
-                value={testForm.endTime}
-                onChange={(e) => setTestForm({ ...testForm, endTime: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -685,173 +756,125 @@ export default function SuperAdminTechAbilityPage() {
               />
               Proctored
             </label>
-            <select
-              value={testForm.status}
-              onChange={(e) => setTestForm({ ...testForm, status: e.target.value })}
-              className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
-            >
-              <option value="DRAFT">Draft</option>
-              <option value="PUBLISHED">Published</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Coding problems {editingTest ? "(leave empty to keep existing)" : "(required)"}
-            </label>
-            <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-1">
-              {problems.length === 0 ? (
-                <p className="text-xs text-slate-400 p-2">No problems — create some in the Problems tab first.</p>
-              ) : (
-                problems.map((p) => (
-                  <label key={p.id} className="flex items-center gap-2 text-sm px-2 py-1 hover:bg-slate-50 rounded">
-                    <input
-                      type="checkbox"
-                      checked={testForm.problemIds.includes(p.id)}
-                      onChange={(e) => {
-                        setTestForm((f) => ({
-                          ...f,
-                          problemIds: e.target.checked
-                            ? [...f.problemIds, p.id]
-                            : f.problemIds.filter((x) => x !== p.id),
-                        }));
-                      }}
-                    />
-                    <span>
-                      {p.title} <span className="text-xs text-slate-400">({p.language} · {p.marks}m)</span>
-                    </span>
-                  </label>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setTestModal(false)}
-              className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={testSaving}
-              className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50"
-            >
-              {testSaving ? "Saving..." : editingTest ? "Update" : "Create"}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal
-        open={probModal}
-        onClose={() => setProbModal(false)}
-        title={editingProb ? "Edit Problem" : "Create Problem"}
-      >
-        <form onSubmit={saveProb} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-          {probError && (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-              {probError}
-            </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
-            <input
-              required
-              value={probForm.title}
-              onChange={(e) => setProbForm({ ...probForm, title: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Description / statement</label>
-            <textarea
-              required
-              value={probForm.description}
-              onChange={(e) => setProbForm({ ...probForm, description: e.target.value })}
-              rows={4}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono"
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Language</label>
-              <select
-                value={probForm.language}
-                onChange={(e) => setProbForm({ ...probForm, language: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setTestModal(false)}
+                className="px-4 py-2 text-sm rounded-lg border border-slate-300"
               >
-                {LANGS.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </select>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={testSaving}
+                className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white disabled:opacity-50"
+              >
+                {testSaving ? "Saving..." : editingTest ? "Update" : "Create"}
+              </button>
             </div>
+          </form>
+        </Modal>
+
+        {/* Create / Edit Problem modal */}
+        <Modal
+          open={probModal}
+          onClose={() => setProbModal(false)}
+          title={editingProb ? "Edit Problem" : "Create Problem"}
+        >
+          <form onSubmit={saveProb} className="space-y-4">
+            {probError && (
+              <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                {probError}
+              </div>
+            )}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Marks</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
               <input
-                type="number"
-                value={probForm.marks}
-                onChange={(e) => setProbForm({ ...probForm, marks: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                required
+                value={probForm.title}
+                onChange={(e) => setProbForm({ ...probForm, title: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Difficulty</label>
-              <input
-                type="number"
-                min={1}
-                max={5}
-                value={probForm.difficulty}
-                onChange={(e) => setProbForm({ ...probForm, difficulty: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+              <textarea
+                required
+                value={probForm.description}
+                onChange={(e) => setProbForm({ ...probForm, description: e.target.value })}
+                rows={4}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                placeholder="Problem statement, input/output format, constraints..."
               />
             </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Starter code</label>
-            <textarea
-              value={probForm.starterCode}
-              onChange={(e) => setProbForm({ ...probForm, starterCode: e.target.value })}
-              rows={5}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono bg-slate-50"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Test cases (JSON array)
-            </label>
-            <textarea
-              value={probForm.testCasesText}
-              onChange={(e) => setProbForm({ ...probForm, testCasesText: e.target.value })}
-              rows={6}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono bg-slate-50"
-            />
-            <p className="text-xs text-slate-400 mt-1">
-              Each case: input, expectedOutput, isHidden (optional). Hidden cases scored but not shown live.
-            </p>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setProbModal(false)}
-              className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={probSaving}
-              className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50"
-            >
-              {probSaving ? "Saving..." : editingProb ? "Update" : "Create"}
-            </button>
-          </div>
-        </form>
-      </Modal>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Language</label>
+                <select
+                  value={probForm.language}
+                  onChange={(e) => setProbForm({ ...probForm, language: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                >
+                  {LANGS.map((l) => (
+                    <option key={l} value={l}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Marks</label>
+                <input
+                  type="number"
+                  value={probForm.marks}
+                  onChange={(e) => setProbForm({ ...probForm, marks: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Starter code</label>
+              <textarea
+                value={probForm.starterCode}
+                onChange={(e) => setProbForm({ ...probForm, starterCode: e.target.value })}
+                rows={5}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Test cases (JSON array)
+              </label>
+              <textarea
+                value={probForm.testCasesText}
+                onChange={(e) => setProbForm({ ...probForm, testCasesText: e.target.value })}
+                rows={4}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg font-mono"
+                placeholder='[{{"input":"1\n","expectedOutput":"2\n","isHidden":false}}]'
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Each item: input, expectedOutput, isHidden (true = hidden from student sample runs)
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setProbModal(false)}
+                className="px-4 py-2 text-sm rounded-lg border border-slate-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={probSaving}
+                className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white disabled:opacity-50"
+              >
+                {probSaving ? "Saving..." : editingProb ? "Update" : "Create"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      </div>
     </DashboardShell>
   );
 }
