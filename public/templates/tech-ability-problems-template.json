@@ -1,0 +1,39 @@
+[
+  {
+    "title": "Sum of Two Numbers",
+    "description": "Read two integers from input and print their sum.\n\nInput:\n- Line 1: integer A\n- Line 2: integer B\n\nOutput:\n- Single integer: A + B\n\nExample:\nInput:\n3\n5\nOutput:\n8",
+    "language": "JAVA",
+    "marks": 10,
+    "difficulty": 1,
+    "starterCode": "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Read two integers and print their sum\n        \n        sc.close();\n    }\n}\n",
+    "testCases": [
+      { "input": "3\n5\n", "expectedOutput": "8\n", "isHidden": false },
+      { "input": "10\n-4\n", "expectedOutput": "6\n", "isHidden": false },
+      { "input": "0\n0\n", "expectedOutput": "0\n", "isHidden": true }
+    ]
+  },
+  {
+    "title": "Hello World",
+    "description": "Print the text Hello World exactly.\n\nInput: none\nOutput: Hello World",
+    "language": "PYTHON",
+    "marks": 5,
+    "difficulty": 1,
+    "starterCode": "# Print Hello World\n",
+    "testCases": [
+      { "input": "", "expectedOutput": "Hello World\n", "isHidden": false }
+    ]
+  },
+  {
+    "title": "Maximum of Two",
+    "description": "Read two integers and print the larger one.\n\nInput:\n- Line 1: A\n- Line 2: B\n\nOutput:\n- max(A, B)",
+    "language": "PYTHON",
+    "marks": 10,
+    "difficulty": 1,
+    "starterCode": "# Read two integers and print the maximum\na = int(input())\nb = int(input())\n# your code here\n",
+    "testCases": [
+      { "input": "3\n7\n", "expectedOutput": "7\n", "isHidden": false },
+      { "input": "15\n9\n", "expectedOutput": "15\n", "isHidden": false },
+      { "input": "-2\n-8\n", "expectedOutput": "-2\n", "isHidden": true }
+    ]
+  }
+]
