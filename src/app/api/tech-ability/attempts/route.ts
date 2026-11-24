@@ -2,8 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, json, error } from "@/lib/api-helpers";
 import { Role } from "@prisma/client";
 import { evaluateCases, parseTestCases } from "@/lib/tech-runner";
+import { markTestAttendance } from "@/lib/attendance";
 
-/** POST — start a new TechAbility attempt */
 export async function POST(req: Request) {
   const auth = await requireAuth([Role.STUDENT]);
   if (auth.error) return auth.error;
@@ -20,7 +20,6 @@ export async function POST(req: Request) {
     if (!test) return error("Test not found", 404);
     if (test.status !== "PUBLISHED") return error("Test is not live");
 
-    // Max attempts check
     const prev = await prisma.techAttempt.count({
       where: {
         testId,
@@ -32,7 +31,6 @@ export async function POST(req: Request) {
       return error(`Maximum attempts (${test.maxAttempts}) reached`);
     }
 
-    // Resume in-progress if any
     const existing = await prisma.techAttempt.findFirst({
       where: { testId, studentId, status: "IN_PROGRESS" },
     });
@@ -52,7 +50,6 @@ export async function POST(req: Request) {
   }
 }
 
-/** PATCH — save submissions and/or finalize attempt */
 export async function PATCH(req: Request) {
   const auth = await requireAuth([Role.STUDENT]);
   if (auth.error) return auth.error;
@@ -82,7 +79,6 @@ export async function PATCH(req: Request) {
       return error("Attempt already submitted");
     }
 
-    // Save / upsert code submissions
     if (Array.isArray(submissions)) {
       for (const sub of submissions) {
         const { problemId, code, language } = sub;
@@ -97,14 +93,13 @@ export async function PATCH(req: Request) {
         let score = 0;
         let resultsJson: string | null = null;
 
-        // Only evaluate when finalizing or when runner is available and action is run
         if (action === "submit" || action === "evaluate") {
           const evalResult = await evaluateCases(
             language || tp.problem.language,
             code,
             cases,
             maxScore,
-            true // strip hidden details for stored student view
+            true
           );
           score = evalResult.score;
           resultsJson = JSON.stringify(evalResult.results);
@@ -136,15 +131,14 @@ export async function PATCH(req: Request) {
     }
 
     if (action === "submit") {
-      // Re-fetch submissions for total score
       const allSubs = await prisma.techSubmission.findMany({
         where: { attemptId },
       });
       const totalScore = allSubs.reduce((s, x) => s + (x.score || 0), 0);
-      const totalMax = attempt.test.problems.reduce(
-        (s, p) => s + (p.marks || 10),
-        0
-      ) || attempt.test.totalMarks || 100;
+      const totalMax =
+        attempt.test.problems.reduce((s, p) => s + (p.marks || 10), 0) ||
+        attempt.test.totalMarks ||
+        100;
       const percentage =
         totalMax > 0 ? Math.round((totalScore / totalMax) * 10000) / 100 : 0;
 
@@ -163,6 +157,17 @@ export async function PATCH(req: Request) {
           ),
         },
       });
+
+      try {
+        await markTestAttendance({
+          studentId: attempt.studentId,
+          source: "CODING_TEST",
+          techTestId: attempt.testId,
+          attemptId,
+        });
+      } catch (e) {
+        console.error("tech attendance mark failed", e);
+      }
 
       return json(updated);
     }

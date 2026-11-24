@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAuth, json, error } from "@/lib/api-helpers";
 import { Role } from "@prisma/client";
+import { markTestAttendance } from "@/lib/attendance";
 
 export async function GET(
   _req: Request,
@@ -49,7 +50,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { answers, violations, action, violated } = body; // action: "save" | "submit"
+    const { answers, violations, action, violated } = body;
 
     const attempt = await prisma.testAttempt.findUnique({
       where: { id },
@@ -65,14 +66,10 @@ export async function PUT(
     if (!attempt) return error("Attempt not found", 404);
     if (attempt.studentId !== auth.session!.user.id) return error("Forbidden", 403);
     if (attempt.status !== "IN_PROGRESS") return error("Attempt already submitted");
-    // attempt.test.courseId is available on Test model
 
-    // Save answers
     if (answers && Array.isArray(answers)) {
       for (const ans of answers) {
-        const tq = attempt.test.questions.find(
-          (q) => q.questionId === ans.questionId
-        );
+        const tq = attempt.test.questions.find((q) => q.questionId === ans.questionId);
         if (!tq) continue;
 
         const isCorrect =
@@ -102,7 +99,6 @@ export async function PUT(
       }
     }
 
-    // Update violations
     if (violations) {
       await prisma.testAttempt.update({
         where: { id },
@@ -112,7 +108,6 @@ export async function PUT(
       });
     }
 
-    // Submit
     if (action === "submit") {
       const allAnswers = await prisma.answer.findMany({
         where: { attemptId: id },
@@ -142,7 +137,19 @@ export async function PUT(
         },
       });
 
-      // Update course enrollment progress if test is linked to a course
+      // Auto attendance on submit
+      try {
+        await markTestAttendance({
+          studentId: attempt.studentId,
+          source: "TEST",
+          testId: attempt.testId,
+          attemptId: id,
+          courseId: attempt.test.courseId,
+        });
+      } catch (e) {
+        console.error("attendance mark failed", e);
+      }
+
       if (attempt.test.courseId) {
         const courseId = attempt.test.courseId;
         const studentId = attempt.studentId;
