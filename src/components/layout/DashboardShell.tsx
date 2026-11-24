@@ -22,6 +22,8 @@ import {
   CalendarDays,
   Settings,
   Code2,
+  UserCog,
+  CalendarCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -37,7 +39,9 @@ const superAdminNav: NavItem[] = [
   { label: "Colleges", href: "/super-admin/colleges", icon: Building2 },
   { label: "Departments", href: "/super-admin/departments", icon: GraduationCap },
   { label: "Students", href: "/super-admin/students", icon: Users },
+  { label: "Faculty", href: "/super-admin/faculty", icon: UserCog },
   { label: "Courses", href: "/super-admin/courses", icon: BookOpen },
+  { label: "Attendance", href: "/super-admin/attendance", icon: CalendarCheck },
   { label: "Question Banks", href: "/super-admin/question-banks", icon: FolderOpen },
   { label: "Questions", href: "/super-admin/questions", icon: FileQuestion },
   { label: "Tests", href: "/super-admin/tests", icon: ClipboardList },
@@ -52,7 +56,9 @@ const collegeAdminNav: NavItem[] = [
   { label: "Dashboard", href: "/college-admin", icon: LayoutDashboard },
   { label: "Departments", href: "/college-admin/departments", icon: GraduationCap },
   { label: "Students", href: "/college-admin/students", icon: Users },
+  { label: "Faculty", href: "/college-admin/faculty", icon: UserCog },
   { label: "Courses", href: "/college-admin/courses", icon: BookOpen },
+  { label: "Attendance", href: "/college-admin/attendance", icon: CalendarCheck },
   { label: "Question Bank", href: "/college-admin/questions", icon: FileQuestion },
   { label: "Tests", href: "/college-admin/tests", icon: ClipboardList },
   { label: "TechAbility", href: "/college-admin/tech-ability", icon: Code2 },
@@ -62,11 +68,20 @@ const collegeAdminNav: NavItem[] = [
   { label: "Calendar", href: "/college-admin/calendar", icon: CalendarDays },
 ];
 
+const facultyNav: NavItem[] = [
+  { label: "Dashboard", href: "/faculty", icon: LayoutDashboard },
+  { label: "My Courses", href: "/faculty/courses", icon: BookOpen },
+  { label: "Attendance", href: "/faculty/attendance", icon: CalendarCheck },
+  { label: "Materials", href: "/faculty/materials", icon: FolderOpen },
+  { label: "Account", href: "/faculty/account", icon: Settings },
+];
+
 const studentNav: NavItem[] = [
   { label: "Dashboard", href: "/student", icon: LayoutDashboard },
   { label: "My Courses", href: "/student/courses", icon: BookOpen },
   { label: "Assessments", href: "/student/tests", icon: ClipboardList },
   { label: "TechAbility", href: "/student/tech-ability", icon: Code2 },
+  { label: "My Attendance", href: "/student/attendance", icon: CalendarCheck },
   { label: "Certificates", href: "/student/certificates", icon: Award },
   { label: "Learning Path", href: "/student/learning-path", icon: BarChart3 },
   { label: "Placement", href: "/student/placement", icon: Briefcase },
@@ -79,7 +94,7 @@ export function DashboardShell({
   role,
 }: {
   children: React.ReactNode;
-  role: "SUPER_ADMIN" | "COLLEGE_ADMIN" | "STUDENT";
+  role: "SUPER_ADMIN" | "COLLEGE_ADMIN" | "FACULTY" | "STUDENT";
 }) {
   const { data: session } = useSession();
   const pathname = usePathname();
@@ -89,15 +104,19 @@ export function DashboardShell({
     role === "SUPER_ADMIN"
       ? superAdminNav
       : role === "COLLEGE_ADMIN"
-      ? collegeAdminNav
-      : studentNav;
+        ? collegeAdminNav
+        : role === "FACULTY"
+          ? facultyNav
+          : studentNav;
 
   const roleLabel =
     role === "SUPER_ADMIN"
       ? "Super Admin"
       : role === "COLLEGE_ADMIN"
-      ? "College Admin"
-      : "Student";
+        ? "College Admin"
+        : role === "FACULTY"
+          ? "Faculty"
+          : "Student";
 
   return (
     <div className="sy-shell">
@@ -126,9 +145,7 @@ export function DashboardShell({
             <p className="text-[15px] font-semibold text-[#faf8f4] tracking-tight leading-tight">
               SmartYugam
             </p>
-            <p className="text-[10px] uppercase tracking-[0.14em] text-[#9a948a]">
-              Campus LMS
-            </p>
+            <p className="text-[10px] uppercase tracking-[0.14em] text-[#9a948a]">Campus LMS</p>
           </div>
           <button className="ml-auto lg:hidden p-1.5 rounded-lg hover:bg-white/10" onClick={() => setSidebarOpen(false)}>
             <X className="h-5 w-5 text-[#c9c3b8]" />
@@ -136,15 +153,20 @@ export function DashboardShell({
         </div>
 
         <div className="px-3 pt-4 pb-2">
-          <p className="px-3 text-[10px] uppercase tracking-[0.16em] text-[#7a746a] mb-2">
-            Navigate
-          </p>
+          <p className="px-3 text-[10px] uppercase tracking-[0.16em] text-[#7a746a] mb-2">Navigate</p>
           <nav className="space-y-0.5">
             {nav.map((item) => {
+              const base =
+                role === "SUPER_ADMIN"
+                  ? "/super-admin"
+                  : role === "COLLEGE_ADMIN"
+                    ? "/college-admin"
+                    : role === "FACULTY"
+                      ? "/faculty"
+                      : "/student";
               const active =
                 pathname === item.href ||
-                (item.href !== `/${role.toLowerCase().replace("_", "-")}` &&
-                  pathname.startsWith(item.href));
+                (item.href !== base && pathname.startsWith(item.href));
               const Icon = item.icon;
               return (
                 <Link
@@ -168,9 +190,7 @@ export function DashboardShell({
                 {session?.user?.name?.charAt(0)?.toUpperCase() || "U"}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[#f5f1ea] truncate">
-                  {session?.user?.name}
-                </p>
+                <p className="text-sm font-medium text-[#f5f1ea] truncate">{session?.user?.name}</p>
                 <p className="text-[11px] text-[#9a948a] truncate">{roleLabel}</p>
               </div>
             </div>
@@ -187,17 +207,12 @@ export function DashboardShell({
 
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-[4.25rem] flex items-center px-4 sm:px-6 gap-4 sticky top-0 z-30 bg-[rgba(243,240,233,0.85)] backdrop-blur-md border-b border-[#e5e0d6]/80">
-          <button
-            className="lg:hidden p-2 -ml-1 rounded-xl hover:bg-black/5"
-            onClick={() => setSidebarOpen(true)}
-          >
+          <button className="lg:hidden p-2 -ml-1 rounded-xl hover:bg-black/5" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5 text-[#3d3a35]" />
           </button>
           <div className="flex-1" />
           <NotificationBell />
-          <span className="sy-badge bg-[#f3e4d9] text-[#a34a1c] border border-[#e8cbb8]">
-            {roleLabel}
-          </span>
+          <span className="sy-badge bg-[#f3e4d9] text-[#a34a1c] border border-[#e8cbb8]">{roleLabel}</span>
         </header>
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
