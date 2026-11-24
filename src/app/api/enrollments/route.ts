@@ -32,9 +32,50 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET() {
-  const auth = await requireAuth([Role.STUDENT]);
+export async function GET(req: Request) {
+  const auth = await requireAuth([
+    Role.STUDENT,
+    Role.FACULTY,
+    Role.COLLEGE_ADMIN,
+    Role.SUPER_ADMIN,
+  ]);
   if (auth.error) return auth.error;
+
+  const { searchParams } = new URL(req.url);
+  const courseId = searchParams.get("courseId");
+  const role = auth.session!.user.role;
+
+  // Faculty/Admin: roster by course
+  if (courseId && role !== Role.STUDENT) {
+    if (role === Role.FACULTY) {
+      const ok = await prisma.facultyCourseAssignment.findFirst({
+        where: { facultyId: auth.session!.user.id, courseId },
+      });
+      if (!ok) return error("Forbidden", 403);
+    }
+
+    const enrollments = await prisma.enrollment.findMany({
+      where: { courseId },
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            rollNumber: true,
+            year: true,
+          },
+        },
+      },
+      orderBy: { enrolledAt: "asc" },
+    });
+    return json(enrollments);
+  }
+
+  // Student: own enrollments
+  if (role !== Role.STUDENT) {
+    return error("courseId required", 400);
+  }
 
   const enrollments = await prisma.enrollment.findMany({
     where: { studentId: auth.session!.user.id },
