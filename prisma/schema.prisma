@@ -10,6 +10,7 @@ datasource db {
 enum Role {
   SUPER_ADMIN
   COLLEGE_ADMIN
+  FACULTY
   STUDENT
 }
 
@@ -67,6 +68,17 @@ enum TechLanguage {
   C
 }
 
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+}
+
+enum AttendanceSource {
+  CLASS
+  TEST
+  CODING_TEST
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String?   @unique
@@ -103,6 +115,13 @@ model User {
   createdTechProblems TechProblem[]  @relation("TechProblemCreator")
   createdTechTests    TechTest[]     @relation("TechTestCreator")
   techAttempts        TechAttempt[]
+
+  facultyAssignments FacultyCourseAssignment[] @relation("FacultyAssignments")
+  assignedBy         FacultyCourseAssignment[] @relation("AssignmentCreator")
+  attendanceMarked   AttendanceSession[]       @relation("SessionMarker")
+  attendanceRecords  AttendanceRecord[]        @relation("StudentAttendance")
+  attendanceMarkedRecords AttendanceRecord[]   @relation("AttendanceMarker")
+  courseMaterials    CourseMaterial[]          @relation("MaterialUploader")
 
   @@index([collegeId])
   @@index([role])
@@ -177,6 +196,11 @@ model Course {
   modules     CourseModule[]
   enrollments Enrollment[]
   certificates Certificate[]
+
+  facultyAssignments FacultyCourseAssignment[]
+  attendanceSessions AttendanceSession[]
+  attendanceRecords  AttendanceRecord[]
+  materials          CourseMaterial[]
 
   @@index([collegeId])
   @@index([departmentId])
@@ -313,6 +337,7 @@ model Test {
   createdBy       User       @relation("TestCreator", fields: [createdById], references: [id])
   questions       TestQuestion[]
   attempts        TestAttempt[]
+  attendanceRecords AttendanceRecord[]
 
   @@index([collegeId])
   @@index([departmentId])
@@ -540,10 +565,6 @@ model PushSubscription {
   @@index([userId])
 }
 
-// ─────────────────────────────────────────────
-// TechAbility — coding tests (separate from MCQ)
-// ─────────────────────────────────────────────
-
 model TechProblem {
   id           String       @id @default(cuid())
   title        String
@@ -551,7 +572,6 @@ model TechProblem {
   language     TechLanguage @default(PYTHON)
   starterCode  String?
   solutionCode String?
-  /// JSON: [{ input, expectedOutput, isHidden? }]
   testCases    String       @default("[]")
   marks        Int          @default(10)
   difficulty   Int          @default(1)
@@ -593,6 +613,7 @@ model TechTest {
   createdBy       User       @relation("TechTestCreator", fields: [createdById], references: [id])
   problems        TechTestProblem[]
   attempts        TechAttempt[]
+  attendanceRecords AttendanceRecord[]
 
   @@index([collegeId])
   @@index([departmentId])
@@ -647,4 +668,89 @@ model TechSubmission {
   problem     TechProblem  @relation(fields: [problemId], references: [id])
 
   @@unique([attemptId, problemId])
+}
+
+// ── Faculty + Attendance ───────────────────────
+
+model FacultyCourseAssignment {
+  id           String   @id @default(cuid())
+  facultyId    String
+  courseId     String
+  assignedById String?
+  createdAt    DateTime @default(now())
+
+  faculty      User     @relation("FacultyAssignments", fields: [facultyId], references: [id], onDelete: Cascade)
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  assignedBy   User?    @relation("AssignmentCreator", fields: [assignedById], references: [id])
+
+  @@unique([facultyId, courseId])
+  @@index([facultyId])
+  @@index([courseId])
+}
+
+model AttendanceSession {
+  id          String   @id @default(cuid())
+  courseId    String
+  /// Calendar day of the class (store as date at 00:00 UTC of that IST day conceptually)
+  date        DateTime
+  notes       String?
+  markedById  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  markedBy    User?    @relation("SessionMarker", fields: [markedById], references: [id])
+  records     AttendanceRecord[]
+
+  @@unique([courseId, date])
+  @@index([courseId])
+  @@index([date])
+}
+
+model AttendanceRecord {
+  id          String           @id @default(cuid())
+  studentId   String
+  date        DateTime
+  status      AttendanceStatus @default(PRESENT)
+  source      AttendanceSource @default(CLASS)
+  courseId    String?
+  sessionId   String?
+  testId      String?
+  techTestId  String?
+  attemptId   String?
+  markedById  String?
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  student     User             @relation("StudentAttendance", fields: [studentId], references: [id], onDelete: Cascade)
+  course      Course?          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  session     AttendanceSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  test        Test?            @relation(fields: [testId], references: [id], onDelete: SetNull)
+  techTest    TechTest?        @relation(fields: [techTestId], references: [id], onDelete: SetNull)
+  markedBy    User?            @relation("AttendanceMarker", fields: [markedById], references: [id])
+
+  @@index([studentId, date])
+  @@index([courseId, date])
+  @@index([source])
+  @@index([testId])
+  @@index([techTestId])
+  @@index([sessionId])
+}
+
+model CourseMaterial {
+  id           String   @id @default(cuid())
+  courseId     String
+  title        String
+  description  String?
+  fileUrl      String?
+  fileName     String?
+  uploadedById String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  uploadedBy   User     @relation("MaterialUploader", fields: [uploadedById], references: [id])
+
+  @@index([courseId])
 }
