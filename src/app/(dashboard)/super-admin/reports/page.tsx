@@ -11,7 +11,9 @@ import {
   Filter,
   Download,
   ExternalLink,
+  FileText,
 } from "lucide-react";
+import { printStudentReport, printStudentReports } from "@/lib/student-report-pdf";
 
 type College = { id: string; name: string; code: string };
 type Department = { id: string; name: string; code: string; college?: College; collegeId?: string };
@@ -41,7 +43,6 @@ export default function ReportsPage() {
       setColleges(Array.isArray(cols) ? cols : []);
       setDepartments(Array.isArray(depts) ? depts : []);
     });
-    // Initial report (all data)
     void generateReport({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -55,7 +56,6 @@ export default function ReportsPage() {
       .catch(() => setTests([]));
   }, [filters.collegeId]);
 
-  // Re-fetch report whenever filters change (including selecting a test)
   useEffect(() => {
     const t = setTimeout(() => {
       void generateReport();
@@ -94,6 +94,18 @@ export default function ReportsPage() {
     }
   }
 
+  function filterLabel() {
+    const parts: string[] = [];
+    const col = colleges.find((c) => c.id === filters.collegeId);
+    if (col) parts.push(col.name);
+    const dep = departments.find((d) => d.id === filters.departmentId);
+    if (dep) parts.push(dep.name);
+    if (filters.year) parts.push(`Year ${filters.year}`);
+    const test = tests.find((t) => t.id === filters.testId);
+    if (test) parts.push(test.title);
+    return parts.length ? parts.join(" · ") : "All filters";
+  }
+
   function downloadCsv() {
     const params = new URLSearchParams();
     if (filters.collegeId) params.set("collegeId", filters.collegeId);
@@ -101,6 +113,18 @@ export default function ReportsPage() {
     if (filters.year) params.set("year", filters.year);
     if (filters.testId) params.set("testId", filters.testId);
     window.open(`/api/reports/export?${params}`, "_blank");
+  }
+
+  function downloadAllStudentPdfs() {
+    const rows = report?.students || [];
+    if (!rows.length) {
+      alert("No students in the current report");
+      return;
+    }
+    printStudentReports(rows, {
+      title: "Student-wise exam report",
+      filterLabel: filterLabel(),
+    });
   }
 
   return (
@@ -194,6 +218,13 @@ export default function ReportsPage() {
               <Download className="h-4 w-4" /> Download CSV
             </button>
             <button
+              onClick={downloadAllStudentPdfs}
+              disabled={!report?.students?.length}
+              className="inline-flex items-center gap-2 px-5 py-2.5 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-50 disabled:opacity-50"
+            >
+              <FileText className="h-4 w-4" /> Student PDF (all)
+            </button>
+            <button
               onClick={() => generateReport()}
               disabled={loading}
               className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-medium rounded-lg"
@@ -233,31 +264,23 @@ export default function ReportsPage() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white rounded-xl border border-slate-200 p-5">
                   <Users className="h-5 w-5 text-indigo-600 mb-2" />
-                  <p className="text-2xl font-bold text-slate-900">
-                    {report.summary.totalStudents}
-                  </p>
+                  <p className="text-2xl font-bold text-slate-900">{report.summary.totalStudents}</p>
                   <p className="text-sm text-slate-500">Students (filtered)</p>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 p-5">
                   <ClipboardList className="h-5 w-5 text-rose-500 mb-2" />
-                  <p className="text-2xl font-bold text-slate-900">
-                    {report.summary.totalTests}
-                  </p>
+                  <p className="text-2xl font-bold text-slate-900">{report.summary.totalTests}</p>
                   <p className="text-sm text-slate-500">Tests in scope</p>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 p-5">
                   <BarChart3 className="h-5 w-5 text-emerald-600 mb-2" />
-                  <p className="text-2xl font-bold text-slate-900">
-                    {report.summary.totalAttempts}
-                  </p>
+                  <p className="text-2xl font-bold text-slate-900">{report.summary.totalAttempts}</p>
                   <p className="text-sm text-slate-500">Completed attempts</p>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 p-5">
                   <TrendingUp className="h-5 w-5 text-amber-600 mb-2" />
                   <p className="text-2xl font-bold text-slate-900">
-                    {report.summary.avgPercentage != null
-                      ? `${report.summary.avgPercentage}%`
-                      : "—"}
+                    {report.summary.avgPercentage != null ? `${report.summary.avgPercentage}%` : "—"}
                   </p>
                   <p className="text-sm text-slate-500">Average score</p>
                 </div>
@@ -297,7 +320,7 @@ export default function ReportsPage() {
                           <tr key={row.test.id} className="hover:bg-slate-50">
                             <td className="px-5 py-3">
                               <p className="font-medium text-slate-900">{row.test.title}</p>
-                              <p className="text-xs text-slate-400">{row.test.status}</p>
+                              <p className="text-xs text-slate-400">{row.test.status}{row.test.kind === "CODING" ? " · Coding" : ""}</p>
                             </td>
                             <td className="px-5 py-3 text-slate-600">
                               {row.test.department?.name || "All / college-wide"}
@@ -312,7 +335,7 @@ export default function ReportsPage() {
                             </td>
                             <td className="px-5 py-3 text-right">
                               <Link
-                                href={`/super-admin/results/${row.test.id}`}
+                                href={`/super-admin/results/${row.test.id}${row.test.kind === "CODING" ? "?kind=CODING" : ""}`}
                                 className="inline-flex items-center gap-1 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg"
                               >
                                 View results <ExternalLink className="h-3 w-3" />
@@ -344,9 +367,7 @@ export default function ReportsPage() {
                         <td className="px-5 py-3 font-medium">{d.name}</td>
                         <td className="px-5 py-3">{d.students}</td>
                         <td className="px-5 py-3">{d.attempts}</td>
-                        <td className="px-5 py-3">
-                          {d.avgScore != null ? `${d.avgScore}%` : "—"}
-                        </td>
+                        <td className="px-5 py-3">{d.avgScore != null ? `${d.avgScore}%` : "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -373,9 +394,7 @@ export default function ReportsPage() {
                         </td>
                         <td className="px-5 py-3">{y.students}</td>
                         <td className="px-5 py-3">{y.attempts}</td>
-                        <td className="px-5 py-3">
-                          {y.avgScore != null ? `${y.avgScore}%` : "—"}
-                        </td>
+                        <td className="px-5 py-3">{y.avgScore != null ? `${y.avgScore}%` : "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -385,6 +404,16 @@ export default function ReportsPage() {
 
             {view === "student" && (
               <div className="space-y-3">
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={downloadAllStudentPdfs}
+                    disabled={!report?.students?.length}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg disabled:opacity-50"
+                  >
+                    <FileText className="h-4 w-4" /> Download all as PDF
+                  </button>
+                </div>
                 {(report.students || []).length === 0 ? (
                   <div className="bg-white rounded-xl border p-8 text-center text-slate-500">
                     No students match these filters.
@@ -404,35 +433,49 @@ export default function ReportsPage() {
                             {sr.student.year ? ` · Year ${sr.student.year}` : ""}
                           </p>
                         </div>
-                        <div className="text-sm text-slate-600">
-                          Attended: <strong>{sr.attendedCount}</strong> / {sr.totalTests} · Avg:{" "}
-                          <strong>{sr.avgPercentage ?? "—"}%</strong>
+                        <div className="flex items-center gap-3">
+                          <div className="text-sm text-slate-600">
+                            Attended: <strong>{sr.attendedCount}</strong> / {sr.totalTests} · Avg:{" "}
+                            <strong>{sr.avgPercentage ?? "—"}%</strong>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              printStudentReport(sr, { filterLabel: filterLabel() })
+                            }
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg"
+                          >
+                            <FileText className="h-3.5 w-3.5" /> PDF
+                          </button>
                         </div>
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div>
-                          <p className="text-xs font-medium text-emerald-700 mb-2">
-                            Completed exams
-                          </p>
+                          <p className="text-xs font-medium text-emerald-700 mb-2">Completed exams</p>
                           {sr.attended.length === 0 ? (
                             <p className="text-xs text-slate-400">None</p>
                           ) : (
                             <ul className="space-y-1">
                               {sr.attended.map((a: any) => (
                                 <li
-                                  key={a.testId + String(a.submittedAt)}
+                                  key={a.testId + String(a.submittedAt || a.percentage)}
                                   className="text-sm flex justify-between gap-2"
                                 >
                                   <span className="text-slate-700 truncate">
                                     {a.testTitle}
                                     {a.status === "VIOLATED" ? " (violated)" : ""}
+                                    {a.kind === "CODING" ? " · Coding" : ""}
                                   </span>
                                   <span
                                     className={`font-medium shrink-0 ${
-                                      a.passed ? "text-emerald-600" : "text-rose-600"
+                                      a.status === "VIOLATED"
+                                        ? "text-red-600"
+                                        : (a.percentage || 0) >= 40
+                                          ? "text-emerald-600"
+                                          : "text-red-600"
                                     }`}
                                   >
-                                    {a.percentage != null ? `${Math.round(a.percentage)}%` : "—"}
+                                    {a.percentage != null ? `${Number(a.percentage).toFixed(0)}%` : "—"}
                                   </span>
                                 </li>
                               ))}
@@ -445,16 +488,12 @@ export default function ReportsPage() {
                             <p className="text-xs text-slate-400">None</p>
                           ) : (
                             <ul className="space-y-1">
-                              {sr.notAttended.slice(0, 12).map((t: any) => (
+                              {sr.notAttended.map((t: any) => (
                                 <li key={t.testId} className="text-sm text-slate-500 truncate">
                                   {t.testTitle}
+                                  {t.kind === "CODING" ? " · Coding" : ""}
                                 </li>
                               ))}
-                              {sr.notAttended.length > 12 && (
-                                <li className="text-xs text-slate-400">
-                                  +{sr.notAttended.length - 12} more
-                                </li>
-                              )}
                             </ul>
                           )}
                         </div>
@@ -465,15 +504,6 @@ export default function ReportsPage() {
               </div>
             )}
           </>
-        )}
-
-        {!report && !loading && (
-          <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center text-slate-500">
-            Select filters and click <strong>Generate Report</strong>.
-          </div>
-        )}
-        {loading && (
-          <div className="text-center text-slate-500 text-sm py-8">Loading report…</div>
         )}
       </div>
     </DashboardShell>
