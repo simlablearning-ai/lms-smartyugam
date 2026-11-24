@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 
-export default function FacultyMaterialsPage() {
+function FacultyMaterialsInner() {
   const sp = useSearchParams();
   const [courses, setCourses] = useState<any[]>([]);
   const [courseId, setCourseId] = useState(sp.get("courseId") || "");
@@ -49,38 +49,67 @@ export default function FacultyMaterialsPage() {
   }
 
   return (
-    <DashboardShell role="FACULTY">
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-slate-900">Course materials</h1>
-        <div className="bg-white rounded-xl border p-4 space-y-3">
-          <select value={courseId} onChange={(e) => setCourseId(e.target.value)} className="w-full max-w-md px-3 py-2 text-sm border rounded-lg">
-            <option value="">Select course</option>
-            {courses.map((c) => (
-              <option key={c.id} value={c.id}>{c.title}</option>
-            ))}
-          </select>
-          <form onSubmit={add} className="grid sm:grid-cols-3 gap-2">
-            <input required placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} className="px-3 py-2 text-sm border rounded-lg" />
-            <input placeholder="File URL (Drive/PDF link)" value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} className="px-3 py-2 text-sm border rounded-lg" />
-            <button type="submit" className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg">Add material</button>
-          </form>
-          {msg && <p className="text-sm text-slate-600">{msg}</p>}
-        </div>
-        <ul className="bg-white rounded-xl border divide-y">
-          {list.map((m) => (
-            <li key={m.id} className="px-4 py-3 flex justify-between">
-              <div>
-                <p className="font-medium">{m.title}</p>
-                <p className="text-xs text-slate-500">{m.uploadedBy?.name}</p>
-              </div>
-              {m.fileUrl && (
-                <a href={m.fileUrl} target="_blank" rel="noreferrer" className="text-sm text-indigo-600">Open</a>
-              )}
-            </li>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-slate-900">Course materials</h1>
+      <div className="bg-white rounded-xl border p-4 space-y-3">
+        <select
+          value={courseId}
+          onChange={(e) => setCourseId(e.target.value)}
+          className="w-full max-w-md px-3 py-2 text-sm border rounded-lg"
+        >
+          <option value="">Select course</option>
+          {courses.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.title}
+            </option>
           ))}
-          {!list.length && <li className="px-4 py-8 text-center text-slate-500">No materials yet</li>}
-        </ul>
+        </select>
+        <form onSubmit={add} className="grid sm:grid-cols-3 gap-2">
+          <input
+            required
+            placeholder="Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="px-3 py-2 text-sm border rounded-lg"
+          />
+          <input
+            placeholder="File URL (Drive/PDF link)"
+            value={fileUrl}
+            onChange={(e) => setFileUrl(e.target.value)}
+            className="px-3 py-2 text-sm border rounded-lg"
+          />
+          <button type="submit" className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg">
+            Add material
+          </button>
+        </form>
+        {msg && <p className="text-sm text-slate-600">{msg}</p>}
       </div>
+      <ul className="bg-white rounded-xl border divide-y">
+        {list.map((m) => (
+          <li key={m.id} className="px-4 py-3 flex justify-between">
+            <div>
+              <p className="font-medium">{m.title}</p>
+              <p className="text-xs text-slate-500">{m.uploadedBy?.name}</p>
+            </div>
+            {m.fileUrl && (
+              <a href={m.fileUrl} target="_blank" rel="noreferrer" className="text-sm text-indigo-600">
+                Open
+              </a>
+            )}
+          </li>
+        ))}
+        {!list.length && <li className="px-4 py-8 text-center text-slate-500">No materials yet</li>}
+      </ul>
+    </div>
+  );
+}
+
+export default function FacultyMaterialsPage() {
+  return (
+    <DashboardShell role="FACULTY">
+      <Suspense fallback={<p className="text-slate-500 p-8 text-center">Loading...</p>}>
+        <FacultyMaterialsInner />
+      </Suspense>
     </DashboardShell>
   );
 }
