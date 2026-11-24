@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
+import { useSearchParams } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Modal } from "@/components/ui/Modal";
 import { ArrowLeft, Download } from "lucide-react";
@@ -10,6 +11,8 @@ import { AnswerAnalysis } from "@/components/results/AnswerAnalysis";
 
 export default function TestResultsPage({ params }: { params: Promise<{ testId: string }> }) {
   const { testId } = use(params);
+  const searchParams = useSearchParams();
+  const kindParam = (searchParams.get("kind") || "").toUpperCase();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [deptFilter, setDeptFilter] = useState("");
@@ -18,15 +21,17 @@ export default function TestResultsPage({ params }: { params: Promise<{ testId: 
 
   async function load() {
     setLoading(true);
-    const q = deptFilter ? `?testId=${testId}&departmentId=${deptFilter}` : `?testId=${testId}`;
-    const d = await fetch(`/api/results${q}`).then((r) => r.json());
+    const paramsQs = new URLSearchParams({ testId });
+    if (deptFilter) paramsQs.set("departmentId", deptFilter);
+    if (kindParam === "CODING") paramsQs.set("kind", "CODING");
+    const d = await fetch(`/api/results?${paramsQs}`).then((r) => r.json());
     setData(d.error ? null : d);
     setLoading(false);
   }
 
   useEffect(() => {
     load();
-  }, [testId, deptFilter]);
+  }, [testId, deptFilter, kindParam]);
 
   async function viewAttempt(id: string) {
     setDetailLoading(true);
@@ -51,7 +56,7 @@ export default function TestResultsPage({ params }: { params: Promise<{ testId: 
   function exportCsv() {
     if (!data?.attempts?.length) return;
     const rows = [
-      ["Name", "Roll Number", "Email", "Dept", "Year", "Score", "Percentage", "Status", "Violations", "Submitted"],
+      ["Name", "Roll Number", "Email", "Dept", "Year", "Score", "Percentage", "Status", "Violations", "Submitted", "Type"],
       ...data.attempts.map((a: any) => [
         a.student?.name,
         a.student?.rollNumber || "",
@@ -63,6 +68,7 @@ export default function TestResultsPage({ params }: { params: Promise<{ testId: 
         a.status,
         a.violationCount,
         a.submittedAt ? new Date(a.submittedAt).toISOString() : "",
+        data.kind || a.kind || "MCQ",
       ]),
     ];
     const csv = rows.map((r: (string | number)[]) => r.map((c: string | number) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
@@ -83,6 +89,8 @@ export default function TestResultsPage({ params }: { params: Promise<{ testId: 
     ).values()
   ) as any[];
 
+  const isCoding = data?.kind === "CODING" || kindParam === "CODING";
+
   return (
     <DashboardShell role="SUPER_ADMIN">
       <div className="space-y-6">
@@ -93,6 +101,9 @@ export default function TestResultsPage({ params }: { params: Promise<{ testId: 
             </Link>
             <h1 className="text-2xl font-bold text-slate-900">{data?.test?.title || "Test results"}</h1>
             <p className="text-slate-500 text-sm mt-1">
+              {isCoding && (
+                <span className="mr-2 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-50 text-violet-700">Coding</span>
+              )}
               {data?.test?.college?.name}
               {data?.test?.department ? ` · ${data.test.department.name}` : ""}
             </p>
@@ -174,18 +185,8 @@ export default function TestResultsPage({ params }: { params: Promise<{ testId: 
                         {a.submittedAt ? formatIst(a.submittedAt) : "—"}
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => viewAttempt(a.id)}
-                          className="text-xs font-medium text-indigo-600 hover:text-indigo-800 mr-2"
-                        >
-                          View
-                        </button>
-                        <button
-                          onClick={() => resetAttempt(a.id, a.student?.name)}
-                          className="text-xs font-medium text-red-600 hover:text-red-800"
-                        >
-                          Reset
-                        </button>
+                        <button onClick={() => viewAttempt(a.id)} className="text-xs font-medium text-indigo-600 hover:text-indigo-800 mr-2">View</button>
+                        <button onClick={() => resetAttempt(a.id, a.student?.name)} className="text-xs font-medium text-red-600 hover:text-red-800">Reset</button>
                       </td>
                     </tr>
                   ))
@@ -219,42 +220,45 @@ export default function TestResultsPage({ params }: { params: Promise<{ testId: 
                 <p className="text-xs text-slate-500">Violations</p>
               </div>
               <div className="bg-slate-50 rounded-xl p-3 text-center">
-                <p className={`text-sm font-bold ${detail.status === "VIOLATED" ? "text-red-600" : "text-emerald-600"}`}>
-                  {detail.status}
-                </p>
+                <p className={`text-sm font-bold ${detail.status === "VIOLATED" ? "text-red-600" : "text-emerald-600"}`}>{detail.status}</p>
                 <p className="text-xs text-slate-500">Status</p>
               </div>
             </div>
-
             <div className="text-sm text-slate-600 space-y-1">
+              <p><span className="text-slate-400">Type:</span> {detail.kind === "CODING" ? "Coding (TechAbility)" : "MCQ"}</p>
               <p><span className="text-slate-400">Email:</span> {detail.student?.email}</p>
               <p><span className="text-slate-400">Dept:</span> {detail.student?.department?.name || "—"}</p>
               <p><span className="text-slate-400">Started:</span> {detail.startedAt ? formatIst(detail.startedAt) : "—"}</p>
               <p><span className="text-slate-400">Submitted:</span> {detail.submittedAt ? formatIst(detail.submittedAt) : "—"}</p>
               <p><span className="text-slate-400">Duration:</span> {detail.timeSpentSec != null ? `${Math.floor(detail.timeSpentSec / 60)}m ${detail.timeSpentSec % 60}s` : "—"}</p>
             </div>
-
             {Array.isArray(detail.violations) && detail.violations.length > 0 && (
               <div>
                 <h3 className="text-sm font-semibold text-red-700 mb-2">Violations log</h3>
                 <ul className="text-xs space-y-1 max-h-28 overflow-y-auto">
                   {detail.violations.map((v: any, i: number) => (
-                    <li key={i} className="bg-red-50 border border-red-100 rounded px-2 py-1">
-                      {v.type} · {v.timestamp ? formatIst(v.timestamp) : ""}
-                    </li>
+                    <li key={i} className="bg-red-50 border border-red-100 rounded px-2 py-1">{v.type} · {v.timestamp ? formatIst(v.timestamp) : ""}</li>
                   ))}
                 </ul>
               </div>
             )}
-
-            <AnswerAnalysis answers={detail.answers || []} />
-
-            <button
-              onClick={() => resetAttempt(detail.id, detail.student?.name)}
-              className="w-full border border-red-200 text-red-700 hover:bg-red-50 text-sm font-medium py-2.5 rounded-lg"
-            >
-              Reset this attempt
-            </button>
+            {detail.kind === "CODING" ? (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-slate-800">Coding submissions</h3>
+                {(detail.answers || []).map((a: any) => (
+                  <div key={a.id} className="border border-slate-200 rounded-lg p-3">
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="font-medium">{a.question?.text}</span>
+                      <span className="text-slate-600">{a.marksAwarded}/{a.question?.marks} marks · {a.language}</span>
+                    </div>
+                    <pre className="text-xs bg-slate-900 text-slate-100 rounded-lg p-3 overflow-x-auto max-h-40">{a.answer}</pre>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <AnswerAnalysis answers={detail.answers || []} />
+            )}
+            <button onClick={() => resetAttempt(detail.id, detail.student?.name)} className="w-full border border-red-200 text-red-700 hover:bg-red-50 text-sm font-medium py-2.5 rounded-lg">Reset this attempt</button>
           </div>
         )}
       </Modal>
