@@ -27,16 +27,16 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      // Small delay helps iOS Safari commit the session cookie before navigation
       await new Promise((r) => setTimeout(r, 150));
       const sessionRes = await fetch("/api/auth/session", { credentials: "include", cache: "no-store" });
       const session = await sessionRes.json();
       const role = session?.user?.role;
-      // Full page navigation is more reliable on iOS than client router after login
       if (role === "SUPER_ADMIN") {
         window.location.assign("/super-admin");
       } else if (role === "COLLEGE_ADMIN") {
         window.location.assign("/college-admin");
+      } else if (role === "FACULTY") {
+        window.location.assign("/faculty");
       } else {
         window.location.assign("/student");
       }
@@ -78,7 +78,7 @@ export default function LoginPage() {
             <span className="font-semibold text-[#1a1814]">SmartYugam</span>
           </div>
           <h2 className="font-display text-3xl font-medium text-[#1a1814] tracking-tight">Welcome back</h2>
-          <p className="mt-2 text-sm text-[#6b6560]">Students: use Roll Number. Admins: use email.</p>
+          <p className="mt-2 text-sm text-[#6b6560]">Students: Roll Number · Faculty/Admins: email</p>
           <form onSubmit={handleSubmit} className="mt-8 space-y-4">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-1.5">Email or Roll Number</label>
