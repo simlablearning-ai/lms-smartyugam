@@ -4,7 +4,8 @@ import { Role } from "@prisma/client";
 
 /**
  * Reports for Super Admin / College Admin.
- * Shows all tests (any status) that match filters, with completed-attempt stats.
+ * Includes both MCQ Tests and TechAbility coding tests.
+ * Optional filter: type=MCQ | CODING (omit for both).
  */
 export async function GET(req: Request) {
   const auth = await requireAuth([Role.SUPER_ADMIN, Role.COLLEGE_ADMIN]);
@@ -15,6 +16,7 @@ export async function GET(req: Request) {
   const departmentId = searchParams.get("departmentId");
   const year = searchParams.get("year");
   const testId = searchParams.get("testId");
+  const typeFilter = (searchParams.get("type") || "").toUpperCase(); // MCQ | CODING | ""
   const view = searchParams.get("view") || "summary";
 
   let scopedCollegeId: string | undefined = collegeId || undefined;
@@ -23,11 +25,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    // Students matching filters (for student-level breakdown)
-    const studentWhere: any = {
-      role: Role.STUDENT,
-      isActive: true,
-    };
+    const studentWhere: any = { role: Role.STUDENT, isActive: true };
     if (scopedCollegeId) studentWhere.collegeId = scopedCollegeId;
     if (departmentId) studentWhere.departmentId = departmentId;
     if (year) studentWhere.year = parseInt(year, 10);
@@ -46,40 +44,35 @@ export async function GET(req: Request) {
       orderBy: { name: "asc" },
     });
 
-    // Tests: include ALL statuses so completed exams always appear
-    // (Results page lists them; Reports must match)
-    const testWhere: any = {};
-    if (scopedCollegeId) testWhere.collegeId = scopedCollegeId;
-    if (testId) {
-      testWhere.id = testId;
-    } else if (departmentId) {
-      testWhere.OR = [{ departmentId }, { departmentId: null }];
-    }
+    const includeMcq = typeFilter !== "CODING";
+    const includeTech = typeFilter !== "MCQ";
 
-    let tests = await prisma.test.findMany({
-      where: testWhere,
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        totalMarks: true,
-        passingMarks: true,
-        departmentId: true,
-        collegeId: true,
-        startTime: true,
-        endTime: true,
-        createdAt: true,
-        department: { select: { id: true, name: true, code: true } },
-        college: { select: { id: true, name: true, code: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    type UnifiedTest = {
+      id: string;
+      title: string;
+      status: string;
+      totalMarks: number;
+      passingMarks: number;
+      departmentId: string | null;
+      collegeId: string;
+      startTime: Date | null;
+      endTime: Date | null;
+      createdAt: Date;
+      kind: "MCQ" | "CODING";
+      department: { id: string; name: string; code: string } | null;
+      college: { id: string; name: string; code: string } | null;
+    };
 
-    // If a specific testId was requested but not found under filters, still try by id
-    // (avoids empty UI when dropdown shows the test but filters conflict)
-    if (testId && tests.length === 0) {
-      const one = await prisma.test.findUnique({
-        where: { id: testId },
+    let tests: UnifiedTest[] = [];
+
+    if (includeMcq) {
+      const testWhere: any = {};
+      if (scopedCollegeId) testWhere.collegeId = scopedCollegeId;
+      if (testId) testWhere.id = testId;
+      else if (departmentId) testWhere.OR = [{ departmentId }, { departmentId: null }];
+
+      let mcq = await prisma.test.findMany({
+        where: testWhere,
         select: {
           id: true,
           title: true,
@@ -94,26 +87,103 @@ export async function GET(req: Request) {
           department: { select: { id: true, name: true, code: true } },
           college: { select: { id: true, name: true, code: true } },
         },
+        orderBy: { createdAt: "desc" },
       });
-      if (one) {
+
+      if (testId && mcq.length === 0) {
+        const one = await prisma.test.findUnique({
+          where: { id: testId },
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            totalMarks: true,
+            passingMarks: true,
+            departmentId: true,
+            collegeId: true,
+            startTime: true,
+            endTime: true,
+            createdAt: true,
+            department: { select: { id: true, name: true, code: true } },
+            college: { select: { id: true, name: true, code: true } },
+          },
+        });
         if (
-          auth.session!.user.role === Role.COLLEGE_ADMIN &&
-          one.collegeId !== auth.session!.user.collegeId
+          one &&
+          !(auth.session!.user.role === Role.COLLEGE_ADMIN &&
+            one.collegeId !== auth.session!.user.collegeId)
         ) {
-          // forbidden
-        } else {
-          tests = [one];
+          mcq = [one];
         }
       }
+
+      tests.push(...mcq.map((t) => ({ ...t, kind: "MCQ" as const })));
+    }
+
+    if (includeTech) {
+      const techWhere: any = {};
+      if (scopedCollegeId) techWhere.collegeId = scopedCollegeId;
+      if (testId) techWhere.id = testId;
+      else if (departmentId) techWhere.OR = [{ departmentId }, { departmentId: null }];
+
+      let tech = await prisma.techTest.findMany({
+        where: techWhere,
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          totalMarks: true,
+          passingMarks: true,
+          departmentId: true,
+          collegeId: true,
+          startTime: true,
+          endTime: true,
+          createdAt: true,
+          department: { select: { id: true, name: true, code: true } },
+          college: { select: { id: true, name: true, code: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (testId && tech.length === 0 && tests.length === 0) {
+        const one = await prisma.techTest.findUnique({
+          where: { id: testId },
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            totalMarks: true,
+            passingMarks: true,
+            departmentId: true,
+            collegeId: true,
+            startTime: true,
+            endTime: true,
+            createdAt: true,
+            department: { select: { id: true, name: true, code: true } },
+            college: { select: { id: true, name: true, code: true } },
+          },
+        });
+        if (
+          one &&
+          !(auth.session!.user.role === Role.COLLEGE_ADMIN &&
+            one.collegeId !== auth.session!.user.collegeId)
+        ) {
+          tech = [one];
+        }
+      }
+
+      // Avoid duplicating if same id somehow (shouldn't happen)
+      const existingIds = new Set(tests.map((t) => t.id));
+      tests.push(
+        ...tech.filter((t) => !existingIds.has(t.id)).map((t) => ({ ...t, kind: "CODING" as const }))
+      );
     }
 
     const studentIds = students.map((s) => s.id);
-    const testIds = tests.map((t) => t.id);
+    const mcqIds = tests.filter((t) => t.kind === "MCQ").map((t) => t.id);
+    const techIds = tests.filter((t) => t.kind === "CODING").map((t) => t.id);
 
-    // Load completed attempts for these tests
-    // Prefer filtering by student set when year/dept filters apply;
-    // if no students match filters, still show tests with zero rows.
-    let attempts: {
+    type AttemptRow = {
       id: string;
       studentId: string;
       testId: string;
@@ -123,30 +193,26 @@ export async function GET(req: Request) {
       startedAt: Date;
       status: string;
       timeSpentSec: number | null;
-    }[] = [];
+      kind: "MCQ" | "CODING";
+    };
 
-    if (testIds.length > 0) {
-      const attemptWhere: any = {
-        testId: { in: testIds },
-        status: { in: ["SUBMITTED", "AUTO_SUBMITTED", "VIOLATED"] },
-      };
-      // Only restrict by student when we have a student filter that returned IDs
-      // Year/dept filter: restrict attempts to those students
-      // No student filter fields: include all attempts on those tests
-      const studentFilterActive = !!(departmentId || year);
-      if (studentFilterActive) {
-        if (studentIds.length > 0) {
-          attemptWhere.studentId = { in: studentIds };
-        } else {
-          attemptWhere.studentId = { in: ["__none__"] };
-        }
-      } else if (scopedCollegeId && studentIds.length > 0) {
-        // College scope: prefer students of that college (incl. inactive who already attempted)
-        // Also include attempts from any student on these college tests
-      }
+    let attempts: AttemptRow[] = [];
 
-      attempts = await prisma.testAttempt.findMany({
-        where: attemptWhere,
+    const studentFilterActive = !!(departmentId || year);
+    const attemptStudentFilter =
+      studentFilterActive && studentIds.length === 0
+        ? { studentId: { in: ["__none__"] } }
+        : studentFilterActive
+          ? { studentId: { in: studentIds } }
+          : {};
+
+    if (mcqIds.length > 0) {
+      const rows = await prisma.testAttempt.findMany({
+        where: {
+          testId: { in: mcqIds },
+          status: { in: ["SUBMITTED", "AUTO_SUBMITTED", "VIOLATED"] },
+          ...attemptStudentFilter,
+        },
         select: {
           id: true,
           studentId: true,
@@ -159,23 +225,35 @@ export async function GET(req: Request) {
           timeSpentSec: true,
         },
       });
-
-      // If college scoped and no year/dept filter, keep attempts tied to those tests
-      // (already fetched). Optionally drop attempts from students outside college:
-      if (scopedCollegeId && !studentFilterActive && studentIds.length > 0) {
-        const allowed = new Set(studentIds);
-        // Keep attempts whose student is in college OR we don't know — keep all for exam accuracy
-        // Don't filter: deactivated students should still appear in exam stats
-      }
+      attempts.push(...rows.map((a) => ({ ...a, kind: "MCQ" as const })));
     }
 
-    // Ensure students who only appear via attempts are included when viewing a single test
+    if (techIds.length > 0) {
+      const rows = await prisma.techAttempt.findMany({
+        where: {
+          testId: { in: techIds },
+          status: { in: ["SUBMITTED", "AUTO_SUBMITTED", "VIOLATED"] },
+          ...attemptStudentFilter,
+        },
+        select: {
+          id: true,
+          studentId: true,
+          testId: true,
+          score: true,
+          percentage: true,
+          submittedAt: true,
+          startedAt: true,
+          status: true,
+          timeSpentSec: true,
+        },
+      });
+      attempts.push(...rows.map((a) => ({ ...a, kind: "CODING" as const })));
+    }
+
     if (testId && attempts.length > 0) {
       const missingIds = [
         ...new Set(
-          attempts
-            .map((a) => a.studentId)
-            .filter((id) => !studentIds.includes(id))
+          attempts.map((a) => a.studentId).filter((id) => !studentIds.includes(id))
         ),
       ];
       if (missingIds.length) {
@@ -196,7 +274,6 @@ export async function GET(req: Request) {
     }
 
     const allStudents = students;
-    const allStudentIds = allStudents.map((s) => s.id);
 
     const byTest = tests.map((test) => {
       const testAttempts = attempts.filter((a) => a.testId === test.id);
@@ -207,9 +284,7 @@ export async function GET(req: Request) {
       const avg =
         pcts.length > 0 ? pcts.reduce((s, p) => s + p, 0) / pcts.length : null;
       const passMark =
-        test.totalMarks > 0
-          ? (test.passingMarks / test.totalMarks) * 100
-          : 40;
+        test.totalMarks > 0 ? (test.passingMarks / test.totalMarks) * 100 : 40;
       const passed = testAttempts.filter(
         (a) => (a.percentage || 0) >= passMark && a.status !== "VIOLATED"
       ).length;
@@ -224,6 +299,7 @@ export async function GET(req: Request) {
           college: test.college,
           startTime: test.startTime,
           endTime: test.endTime,
+          kind: test.kind,
         },
         attemptCount: testAttempts.length,
         studentCount: uniqueStudents.size,
@@ -247,6 +323,7 @@ export async function GET(req: Request) {
         return {
           testId: a.testId,
           testTitle: test?.title || "Unknown",
+          kind: a.kind,
           score: a.score,
           percentage: a.percentage,
           totalMarks: test?.totalMarks,
@@ -262,6 +339,7 @@ export async function GET(req: Request) {
           testId: t.id,
           testTitle: t.title,
           totalMarks: t.totalMarks,
+          kind: t.kind,
         }));
 
       const avgPercentage =
@@ -352,24 +430,31 @@ export async function GET(req: Request) {
         departmentId: departmentId || null,
         year: year || null,
         testId: testId || null,
+        type: typeFilter || null,
         view,
       },
       summary: {
         totalStudents: allStudents.length,
         totalTests: tests.length,
         totalAttempts: completedAttempts,
-        avgPercentage:
-          avgAll != null ? Math.round(avgAll * 10) / 10 : null,
+        avgPercentage: avgAll != null ? Math.round(avgAll * 10) / 10 : null,
         testsWithAttempts: byTest.filter((t) => t.attemptCount > 0).length,
+        mcqTests: tests.filter((t) => t.kind === "MCQ").length,
+        codingTests: tests.filter((t) => t.kind === "CODING").length,
       },
       byDepartment,
       byYear,
       byTest,
       students: studentReports,
+      // aliases used by some UI variants
+      studentReports,
+      departmentSummary: byDepartment,
+      yearSummary: byYear,
       tests: tests.map((t) => ({
         id: t.id,
         title: t.title,
         status: t.status,
+        kind: t.kind,
         department: t.department,
       })),
     });
