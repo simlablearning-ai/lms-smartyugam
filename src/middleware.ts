@@ -6,11 +6,13 @@ export default withAuth(
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
-    // Role-based protection
     if (path.startsWith("/super-admin") && token?.role !== "SUPER_ADMIN") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
     if (path.startsWith("/college-admin") && token?.role !== "COLLEGE_ADMIN") {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+    if (path.startsWith("/faculty") && token?.role !== "FACULTY") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
     if (path.startsWith("/student") && token?.role !== "STUDENT") {
@@ -30,6 +32,7 @@ export const config = {
   matcher: [
     "/super-admin/:path*",
     "/college-admin/:path*",
+    "/faculty/:path*",
     "/student/:path*",
   ],
 };
